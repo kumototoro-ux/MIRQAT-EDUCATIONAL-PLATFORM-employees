@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | تسجيل الدخول</title>
-<link rel="stylesheet" href="/styles.css?v=1">
+<link rel="stylesheet" href="/styles.css?v=2">
 </head>
 <body>
   <div class="login-wrap">
@@ -16,12 +16,20 @@
       <input type="text" id="username" required autocomplete="username">
 
       <label for="password">كلمة المرور</label>
-      <input type="password" id="password" required autocomplete="current-password">
+      <div class="password-field">
+        <input type="password" id="password" required autocomplete="current-password">
+        <button type="button" id="togglePassword" class="toggle-password" aria-label="إظهار كلمة المرور">
+          <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
 
       <button type="submit" id="submitBtn">دخول</button>
       <p id="errorMsg" class="error-msg"></p>
     </form>
   </div>
-  <script src="/js/login.js?v=1"></script>
+  <script src="/js/login.js?v=2"></script>
 </body>
 </html>
