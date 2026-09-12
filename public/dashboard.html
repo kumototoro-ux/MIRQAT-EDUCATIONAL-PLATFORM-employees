@@ -4,49 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | لوحة التحكم</title>
-<link rel="stylesheet" href="/styles.css?v=1">
-<style>
-  .panel { max-width: 480px; margin: 60px auto; background:#fff; border-radius:12px;
-    padding: 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align:right; }
-  .panel h1 { color:#284e3f; margin-top:0; }
-  .panel .row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; }
-  .logout { margin-top:20px; }
-</style>
+<link rel="stylesheet" href="/styles.css?v=3">
+<link rel="stylesheet" href="/css/shell.css?v=1">
 </head>
 <body>
-  <div class="panel" id="panel">جارٍ التحقق من الجلسة...</div>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"><!-- تُبنى بالجافاسكربت --></nav>
+    </aside>
 
-  <script>
-    const token = localStorage.getItem('mirqat_token');
-    const userRaw = localStorage.getItem('mirqat_user');
-    const panel = document.getElementById('panel');
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
 
-    if (!token || !userRaw) {
-      window.location.href = '/index.html';
-    } else {
-      const user = JSON.parse(userRaw);
-      panel.innerHTML = `
-        <h1>أهلًا، ${user.name || ''}</h1>
-        <div class="row"><span>الدور</span><span>${user.role}</span></div>
-        <div class="row"><span>الفرع</span><span>${user.branch || 'كل الفروع'}</span></div>
-        <button class="logout" onclick="logout()">تسجيل الخروج</button>
-      `;
+      <main class="content">
+        <h1 class="page-title">لوحة التحكم</h1>
 
-      // تحقق فعلي من صلاحية الجلسة مع الخادم
-      fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ action: 'session' })
-      }).then(r => r.json()).then(json => {
-        if (!json.ok) logout();
-      }).catch(() => {});
-    }
+        <div class="cards-grid" id="summaryCards">
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+        </div>
+      </main>
+    </div>
+  </div>
 
-    function logout() {
-      localStorage.removeItem('mirqat_token');
-      localStorage.removeItem('mirqat_user');
-      window.location.href = '/index.html';
-    }
-  </script>
+  <script src="/js/shell.js?v=1"></script>
+  <script src="/js/dashboard.js?v=1"></script>
 </body>
 </html>
