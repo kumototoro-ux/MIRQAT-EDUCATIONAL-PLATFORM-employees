@@ -7,6 +7,7 @@ const MIRQAT_NAV = [
   { key: 'dashboard', label: 'لوحة التحكم', href: '/dashboard.html', ready: true },
   { key: 'students', label: 'الطلاب', href: '/students.html', ready: true },
   { key: 'employees', label: 'الموظفون', href: '/employees.html', ready: true, adminOnly: true },
+  { key: 'accounts', label: 'حسابات الدخول', href: '/accounts.html', ready: true, adminOnly: true },
   { key: 'schedule', label: 'التقويم والجدول', href: '/schedule.html', ready: true },
   { key: 'attendance', label: 'التحضير والغياب', href: '/attendance.html', ready: true },
   { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: true },
