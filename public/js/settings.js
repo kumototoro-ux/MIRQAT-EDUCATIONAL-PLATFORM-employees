@@ -331,11 +331,11 @@ async function performScheduleDelete() {
 }
 
 function setupTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('#mainTabs > .settings-nav-item[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#mainTabs > .settings-nav-item[data-tab]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.querySelectorAll('.tab-panel').forEach(p => p.hidden = true);
+      document.querySelectorAll('.settings-content > .tab-panel').forEach(p => p.hidden = true);
       document.getElementById('panel-' + btn.dataset.tab).hidden = false;
     });
   });

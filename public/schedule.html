@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | التقويم والجدول</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=6">
-<link rel="stylesheet" href="/css/components.css?v=7">
+<link rel="stylesheet" href="/css/shell.css?v=7">
+<link rel="stylesheet" href="/css/components.css?v=8">
 </head>
 <body>
   <div id="shell" class="shell">
@@ -58,6 +58,11 @@
           <div id="calview-week" hidden>
             <div class="toolbar">
               <select id="week_termFilter"><option value="">كل الترمات</option></select>
+            </div>
+            <div class="month-nav">
+              <button class="btn btn-outline btn-sm" id="prevWeekBtn">‹ الأسبوع السابق</button>
+              <h2 id="weekViewLabel"></h2>
+              <button class="btn btn-outline btn-sm" id="nextWeekBtn">الأسبوع التالي ›</button>
             </div>
             <div id="weekList"><p class="loading-row">جارٍ التحميل...</p></div>
           </div>
@@ -128,6 +133,6 @@
   </div>
 
   <script src="/js/shell.js?v=7"></script>
-  <script src="/js/schedule.js?v=3"></script>
+  <script src="/js/schedule.js?v=4"></script>
 </body>
 </html>

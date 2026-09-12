@@ -262,17 +262,28 @@
   border-radius: 12px;
   margin-bottom: 14px;
   overflow: hidden;
+  border-right: 4px solid var(--cell-color, var(--primary));
 }
 
 .week-card-header {
-  padding: 12px 18px;
-  color: #fff;
-  background: var(--cell-color, var(--primary));
+  padding: 14px 18px;
+  color: var(--ink);
+  background: var(--surface);
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.week-card-header .event-badge {
+  background: var(--cell-color, var(--primary));
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
 }
 
 .week-card-days {

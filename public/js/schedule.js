@@ -21,8 +21,14 @@ async function init() {
   try { currentWeekInfo = await mirqatApi('schedule', 'getCurrentTermInfo', {}); } catch { currentWeekInfo = null; }
 
   const today = new Date();
-  viewYear = today.getFullYear();
-  viewMonth = today.getMonth();
+  if (currentWeekInfo?.week_start_date) {
+    const d = new Date(currentWeekInfo.week_start_date);
+    viewYear = d.getFullYear();
+    viewMonth = d.getMonth();
+  } else {
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+  }
 
   setupMainTabs();
   setupCalendarSubTabs();
@@ -122,40 +128,72 @@ function renderMonth() {
     }).join('');
 }
 
-/* ================= عرض أسبوعي ================= */
-function renderWeekList() {
+/* ================= عرض أسبوعي (أسبوع واحد بالمرة) ================= */
+let weekViewList = [];
+let weekViewIndex = 0;
+
+function getFilteredWeeks() {
   const term = document.getElementById('week_termFilter').value;
-  const weeks = term ? fullCalendar.filter(w => w.term === term) : fullCalendar;
-  const list = document.getElementById('weekList');
+  return term ? fullCalendar.filter(w => w.term === term) : fullCalendar;
+}
 
-  if (!weeks.length) { list.innerHTML = '<p class="empty-state">لا يوجد أسابيع في التقويم</p>'; return; }
+function renderWeekList() {
+  weekViewList = getFilteredWeeks();
+  if (!weekViewList.length) {
+    weekViewIndex = 0;
+    document.getElementById('weekList').innerHTML = '<p class="empty-state">لا يوجد أسابيع في التقويم</p>';
+    document.getElementById('weekViewLabel').textContent = '';
+    return;
+  }
 
-  list.innerHTML = weeks.map(w => {
-    const start = w.week_start_date ? new Date(w.week_start_date) : null;
-    const days = start ? SCHOOL_DAYS.map((name, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      return { name, date: d.toISOString().slice(0, 10) };
-    }) : [];
+  // نبدأ من الأسبوع الحالي الفعلي إن كان ضمن القائمة المفلترة، وإلا أول أسبوع
+  const currentIdx = currentWeekInfo
+    ? weekViewList.findIndex(w => w.term === currentWeekInfo.term && w.week === currentWeekInfo.week)
+    : -1;
+  weekViewIndex = currentIdx >= 0 ? currentIdx : 0;
 
-    return `
-      <div class="week-card">
-        <div class="week-card-header" style="--cell-color:${w.color || '#356854'}">
-          <span>${w.term || ''} — ${w.week || ''} ${w.period ? '(' + w.period + ')' : ''}</span>
-          <span>${w.week_start_date || ''} إلى ${w.week_end_date || ''}</span>
-        </div>
-        <div class="week-card-days">
-          ${days.map(d => `
-            <div class="week-day-cell">
-              <div class="wd-name">${d.name}</div>
-              <div class="wd-date">${d.date}</div>
-              <span class="day-event" style="--cell-color:${w.color || '#356854'}">${w.event || '—'}</span>
-            </div>
-          `).join('')}
-        </div>
+  document.getElementById('prevWeekBtn').onclick = () => changeWeekView(-1);
+  document.getElementById('nextWeekBtn').onclick = () => changeWeekView(1);
+
+  renderSingleWeek();
+}
+
+function changeWeekView(delta) {
+  weekViewIndex = Math.max(0, Math.min(weekViewList.length - 1, weekViewIndex + delta));
+  renderSingleWeek();
+}
+
+function renderSingleWeek() {
+  const w = weekViewList[weekViewIndex];
+  if (!w) return;
+
+  document.getElementById('weekViewLabel').textContent = `${w.term || ''} — ${w.week || ''}`;
+  document.getElementById('prevWeekBtn').disabled = weekViewIndex === 0;
+  document.getElementById('nextWeekBtn').disabled = weekViewIndex === weekViewList.length - 1;
+
+  const start = w.week_start_date ? new Date(w.week_start_date) : null;
+  const days = start ? SCHOOL_DAYS.map((name, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return { name, date: d.toISOString().slice(0, 10) };
+  }) : [];
+
+  document.getElementById('weekList').innerHTML = `
+    <div class="week-card" style="--cell-color:${w.color || '#356854'}">
+      <div class="week-card-header">
+        <span>${w.period ? w.period + ' — ' : ''}${w.week_start_date || ''} إلى ${w.week_end_date || ''}</span>
+        <span class="event-badge">${w.event || 'بلا حدث'}</span>
       </div>
-    `;
-  }).join('');
+      <div class="week-card-days">
+        ${days.map(d => `
+          <div class="week-day-cell">
+            <div class="wd-name">${d.name}</div>
+            <div class="wd-date">${d.date}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 /* ================= جدول الحصص ================= */
