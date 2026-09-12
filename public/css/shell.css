@@ -242,8 +242,10 @@
 .user-menu-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
   min-width: 220px;
+  max-width: calc(100vw - 24px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -251,12 +253,11 @@
   padding: 8px;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-6px);
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
   z-index: 60;
 }
-.user-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.user-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
 .user-menu-header {
   display: flex; align-items: center; gap: 10px;

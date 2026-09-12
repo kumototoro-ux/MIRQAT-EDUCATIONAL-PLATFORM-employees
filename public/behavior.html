@@ -5,18 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | السلوك</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=9">
+<link rel="stylesheet" href="/css/shell.css?v=10">
 <link rel="stylesheet" href="/css/components.css?v=9">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
+<script>
+  // تحقق فوري من الجلسة قبل رسم أي شيء — يمنع "ومضة" الصفحة لمن لم يسجّل دخول
+  if (!localStorage.getItem('mirqat_token') || !localStorage.getItem('mirqat_user')) {
+    window.location.replace('/index.html');
+  }
+</script>
   <div id="shell" class="shell">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
         <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
-        <span id="schoolName">مِرقاة</span>
+        <span id="schoolName" class="sidebar-brand-text">مِرقاة</span>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="إغلاق القائمة">✕</button>
       </div>
-      <nav class="sidebar-nav" id="sidebarNav"></nav>
+      <nav class="sidebar-nav" id="sidebarNav"><!-- تُبنى بالجافاسكربت --></nav>
+      <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="طي/توسيع القائمة" title="طي/توسيع القائمة">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+      </button>
     </aside>
 
     <div class="shell-main">
