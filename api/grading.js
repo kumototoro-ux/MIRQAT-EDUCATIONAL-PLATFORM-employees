@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
@@ -35,6 +36,8 @@ export default async function handler(req, res) {
         return await saveRoster(req, res, user, body);
       case 'getGradingRecords':
         return await getGradingRecords(req, res, user, body);
+      case 'getGradingBatchDetail':
+        return await getGradingBatchDetail(req, res, user, body);
       case 'getFinishedWeekRecords':
         return await getFinishedWeekRecords(req, res, user, body);
       case 'getStats':
@@ -101,6 +104,7 @@ async function saveRoster(req, res, user, { records } = {}) {
     return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
   }
 
+  const batchId = crypto.randomUUID();
   const rows = records.map(r => ({
     student_id: r.student_id,
     student_name: r.student_name || null,
@@ -117,7 +121,8 @@ async function saveRoster(req, res, user, { records } = {}) {
     max_score: r.max_score,
     recorded_date: r.recorded_date || new Date().toISOString().slice(0, 10),
     employee_id: user.employeeId,
-    employee_name: user.name
+    employee_name: user.name,
+    batch_id: batchId
   }));
 
   const { data, error } = await supabase.from('daily_follow_up').insert(rows).select();
@@ -128,36 +133,80 @@ async function saveRoster(req, res, user, { records } = {}) {
 }
 
 /* ---------------- سجل الرصد (مُرقَّم، بفلاتر ترم/أسبوع/تاريخ) ---------------- */
-async function getGradingRecords(req, res, user, { filters = {}, page, pageSize } = {}) {
+/* ---------------- سجل الرصد مُجمَّع ككشوفات (كشف واحد لكل عملية رصد) ---------------- */
+async function getGradingRecords(req, res, user, { filters = {} } = {}) {
   if (filters.subject && !requireSubjectAccess(user, filters.subject)) {
     return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
   }
+  if (!filters.subject || !filters.term || !filters.week) {
+    return fail(res, 'اختر المادة والترم والأسبوع أولًا', 400);
+  }
 
-  let query = supabase.from('daily_follow_up').select('*', { count: 'exact' });
+  let query = supabase.from('daily_follow_up').select('*');
   query = scopeToOwner(query, user);
   if (user.role === 'admin' && filters.employeeId) query = query.eq('employee_id', filters.employeeId);
 
-  if (filters.subject) query = query.eq('subject', filters.subject);
-  if (filters.term) query = query.eq('term', filters.term);
-  if (filters.week) query = query.eq('week', filters.week);
+  query = query.eq('subject', filters.subject).eq('term', filters.term).eq('week', filters.week);
   if (filters.recordedDate) query = query.eq('recorded_date', filters.recordedDate);
   if (filters.evalType) query = query.eq('eval_type', filters.evalType);
-  if (filters.studentId) query = query.eq('student_id', filters.studentId);
 
   query = query.order('recorded_date', { ascending: false });
 
-  const paged = applyPagination(query, { page, pageSize });
-  const { data, error, count } = await paged.query;
+  const { data, error } = await query.limit(5000);
   if (error) return fail(res, 'تعذّر جلب سجلات الرصد', 500);
 
   const now = Date.now();
-  const editableRows = data.map(r => ({
+  const groups = new Map();
+  (data || []).forEach(r => {
+    const key = r.batch_id || ('legacy-' + r.id);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        batch_id: key,
+        task_name: r.task_name, eval_type: r.eval_type, subject: r.subject,
+        branch: r.branch, grades: r.grades, sections: r.sections,
+        term: r.term, week: r.week, recorded_date: r.recorded_date,
+        employee_name: r.employee_name, employee_id: r.employee_id,
+        max_score: r.max_score, created_at: r.created_at, studentCount: 0
+      });
+    }
+    const g = groups.get(key);
+    g.studentCount += 1;
+    if (new Date(r.created_at) < new Date(g.created_at)) g.created_at = r.created_at;
+  });
+
+  const rows = Array.from(groups.values()).map(g => ({
+    ...g,
+    can_edit: user.role === 'admin' || (now - new Date(g.created_at).getTime()) < EDIT_WINDOW_HOURS.grading * 3600 * 1000,
+    can_delete: user.role === 'admin' || (now - new Date(g.created_at).getTime()) < DELETE_WINDOW_HOURS.grading * 3600 * 1000
+  })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  return ok(res, paginatedResult(rows, rows.length, 1, rows.length || 1));
+}
+
+/* ---------------- تفاصيل كشف رصد واحد (كل الطلاب) ---------------- */
+async function getGradingBatchDetail(req, res, user, { batchId } = {}) {
+  if (!batchId) return fail(res, 'معرّف الكشف مطلوب', 400);
+
+  let query;
+  if (batchId.startsWith('legacy-')) {
+    query = supabase.from('daily_follow_up').select('*').eq('id', batchId.replace('legacy-', ''));
+  } else {
+    query = supabase.from('daily_follow_up').select('*').eq('batch_id', batchId);
+  }
+  query = scopeToOwner(query, user);
+
+  const { data, error } = await query.order('student_name', { ascending: true });
+  if (error) return fail(res, 'تعذّر جلب تفاصيل الكشف', 500);
+  if (!data.length) return fail(res, 'الكشف غير موجود أو لا تملك صلاحية عرضه', 404);
+
+  const now = Date.now();
+  const rows = data.map(r => ({
     ...r,
     can_edit: user.role === 'admin' || (now - new Date(r.created_at).getTime()) < EDIT_WINDOW_HOURS.grading * 3600 * 1000,
     can_delete: user.role === 'admin' || (now - new Date(r.created_at).getTime()) < DELETE_WINDOW_HOURS.grading * 3600 * 1000
   }));
 
-  return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
+  return ok(res, rows);
 }
 
 /* ---------------- إحصائيات سريعة (عدّ فقط) — تظهر فورًا بلا اختيار معلم/مادة ---------------- */

@@ -6,7 +6,7 @@
 <title>مِرقاة | المهام والإثراءات</title>
 <link rel="stylesheet" href="/styles.css?v=6">
 <link rel="stylesheet" href="/css/shell.css?v=11">
-<link rel="stylesheet" href="/css/components.css?v=10">
+<link rel="stylesheet" href="/css/components.css?v=11">
 </head>
 <body>
 <script>
@@ -87,28 +87,25 @@
 
         <!-- ============ تبويب الإثراءات ============ -->
         <section class="tab-panel" id="panel-enrichments" hidden>
-          <p class="overview-hint">تُعرض هنا إثراءات الأسبوع الدراسي الحالي فقط.</p>
-          <div class="toolbar">
-            <select id="e_filterSubject"><option value="">كل المواد</option></select>
-            <select id="e_filterType">
-              <option value="">كل الأنواع</option>
-              <option value="فيديو">فيديو</option>
-              <option value="اثراء">إثراء</option>
-            </select>
-            <div class="spacer"></div>
-            <button class="btn btn-primary" id="addEnrichmentBtn">+ إضافة إثراء</button>
+          <p class="overview-hint">الإثراءات والفيديوهات محفوظة دائمًا حسب المادة — لا تُقيَّد بأي أسبوع.</p>
+
+          <div class="subject-cards-grid" id="enrichSubjectGrid"></div>
+
+          <div id="enrichDetailView" hidden>
+            <div class="toolbar">
+              <button class="btn btn-outline btn-sm" id="backToSubjectsBtn">‹ رجوع للمواد</button>
+              <h3 id="enrichDetailTitle" style="margin:0; color:var(--primary-dark); font-size:15px;"></h3>
+              <div class="spacer"></div>
+              <select id="e_filterType">
+                <option value="">كل الأنواع</option>
+                <option value="فيديو">فيديو</option>
+                <option value="اثراء">إثراء</option>
+              </select>
+              <button class="btn btn-primary" id="addEnrichmentBtn">+ إضافة إثراء</button>
+            </div>
+            <div class="enrichment-cards-grid" id="enrichmentsGrid"></div>
+            <div class="pagination-bar" id="enrichPaginationBar"></div>
           </div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>العنوان</th><th>النوع</th><th>المادة</th><th>الصف</th><th>الرابط</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="enrichmentsTableBody"><tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr></tbody>
-            </table>
-          </div>
-          <div class="pagination-bar" id="enrichPaginationBar"></div>
         </section>
       </main>
     </div>
@@ -209,7 +206,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=10"></script>
-  <script src="/js/tasks.js?v=4"></script>
+  <script src="/js/shell.js?v=11"></script>
+  <script src="/js/tasks.js?v=5"></script>
 </body>
 </html>

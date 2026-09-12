@@ -485,14 +485,14 @@ async function loadLog(page = currentLogPage) {
   const term = document.getElementById('log_term').value;
   const week = document.getElementById('log_week').value;
   const day = document.getElementById('log_day').value;
-  const body = document.getElementById('logTableBody');
+  const grid = document.getElementById('logCardsGrid');
 
   if (!term || !week || !day) {
-    body.innerHTML = '<tr><td colspan="6" class="empty-state">اختر الترم والأسبوع واليوم أولًا</td></tr>';
+    grid.innerHTML = '<p class="empty-state">اختر الترم والأسبوع واليوم أولًا</p>';
     return;
   }
 
-  body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
+  grid.innerHTML = '<p class="loading-row">جارٍ التحميل...</p>';
 
   const filters = { term, week, day };
   const empFilter = document.getElementById('log_employee').value;
@@ -501,27 +501,59 @@ async function loadLog(page = currentLogPage) {
   try {
     const result = await mirqatApi('attendance', 'getAttendanceRecords', { filters, page, pageSize: 25 });
     if (!result.rows.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد سجلات لهذا الأسبوع/اليوم</td></tr>';
+      grid.innerHTML = '<p class="empty-state">لا يوجد كشوفات لهذا الأسبوع/اليوم</p>';
     } else {
-      body.innerHTML = result.rows.map(r => `
-        <tr>
-          <td data-label="الطالب">${r.student_name || r.student_id}</td>
-          <td data-label="المادة">${r.subject || '—'}</td>
-          <td data-label="الحصة">${r.period || '—'}</td>
-          <td data-label="الحالة">${r.status || '—'}</td>
-          <td data-label="وقت التسجيل">${r.recorded_at ? new Date(r.recorded_at).toLocaleString('ar-SA') : '—'}</td>
-          <td>
-            <div class="row-actions">
-              <button class="btn btn-outline btn-sm" ${r.can_edit ? '' : 'disabled title="انتهت مهلة التعديل"'} onclick="openEditModal('${r.id}')">تعديل</button>
-              <button class="btn btn-danger btn-sm" ${r.can_delete ? '' : 'disabled title="انتهت مهلة الحذف"'} onclick="askDelete('${r.id}')">حذف</button>
-            </div>
-          </td>
-        </tr>
+      grid.innerHTML = result.rows.map(r => `
+        <div class="roster-card" onclick="openBatchDetail('${r.batch_id}')">
+          <div class="rc-title">${r.subject || 'بدون مادة'} — ${r.period ? 'حصة ' + r.period : ''}</div>
+          <div class="rc-meta">${r.branch || ''}<br>سجّله: ${r.employee_name || '—'}<br>${r.recorded_at ? new Date(r.recorded_at).toLocaleString('ar-SA') : ''}</div>
+          <span class="rc-count">${r.studentCount} طالب</span>
+        </div>
       `).join('');
     }
     mirqatRenderPagination('logPaginationBar', result, (p) => loadLog(p));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
+    grid.innerHTML = `<p class="empty-state">تعذّر التحميل: ${e.message}</p>`;
+  }
+}
+
+/* ---------------- تفاصيل كشف واحد (كل الطلاب) ---------------- */
+let currentOpenBatchId = null;
+
+async function openBatchDetail(batchId) {
+  currentOpenBatchId = batchId;
+  mirqatOpenDrawer({ title: 'جارٍ التحميل...', bodyHtml: '<p class="loading-row">جارٍ التحميل...</p>' });
+  await renderBatchDetail(batchId);
+}
+
+async function renderBatchDetail(batchId) {
+  try {
+    const rows = await mirqatApi('attendance', 'getAttendanceBatchDetail', { batchId }, { cache: false });
+    const first = rows[0];
+    const bodyHtml = `
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>الطالب</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td data-label="الطالب">${r.student_name || r.student_id}</td>
+                <td data-label="الحالة">${r.status || '—'}</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-outline btn-sm" ${r.can_edit ? '' : 'disabled title="انتهت مهلة التعديل"'} onclick="openEditModal('${r.id}')">تعديل</button>
+                    <button class="btn btn-danger btn-sm" ${r.can_delete ? '' : 'disabled title="انتهت مهلة الحذف"'} onclick="askDelete('${r.id}')">حذف</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    mirqatOpenDrawer({ title: `${first.subject || 'كشف تحضير'} — ${first.day || ''}`, bodyHtml });
+  } catch (e) {
+    mirqatOpenDrawer({ title: 'خطأ', bodyHtml: `<p class="empty-state">تعذّر التحميل: ${e.message}</p>` });
   }
 }
 
@@ -546,6 +578,7 @@ async function submitEdit() {
       return;
     }
     closeEditModal();
+    if (currentOpenBatchId) renderBatchDetail(currentOpenBatchId);
     loadLog();
   } catch (e) {
     errorEl.textContent = e.message;
@@ -561,6 +594,7 @@ async function performDelete() {
     const result = await mirqatApi('attendance', 'deleteAttendanceRecords', { ids: [deleteTargetId] }, { cache: false });
     closeConfirmModal();
     if (result.note) alert(result.note);
+    if (currentOpenBatchId) renderBatchDetail(currentOpenBatchId);
     loadLog();
   } catch (e) {
     alert('تعذّر حذف السجل: ' + e.message);

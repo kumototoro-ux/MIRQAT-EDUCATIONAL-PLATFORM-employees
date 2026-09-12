@@ -220,13 +220,8 @@ async function getEnrichments(req, res, user, { filters = {}, page, pageSize } =
   if (filters.sections) query = query.eq('sections', filters.sections);
   if (filters.subject) query = query.eq('subject', filters.subject);
   if (filters.contentType) query = query.eq('content_type', filters.contentType);
-
-  if (!filters.showAll && !filters.dateFrom) {
-    const currentWeek = await getCurrentWeek(filters.term);
-    if (currentWeek) {
-      query = query.gte('publish_date', currentWeek.week_start_date).lte('publish_date', currentWeek.week_end_date);
-    }
-  }
+  // ملاحظة: الإثراءات والفيديوهات لا تُقيَّد بالأسبوع الحالي إطلاقًا (بخلاف التكاليف) —
+  // تبقى متاحة ومؤرشفة دائمًا حسب المادة.
 
   query = query.order('publish_date', { ascending: false });
 

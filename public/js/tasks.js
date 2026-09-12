@@ -26,13 +26,10 @@ async function init() {
     (allLists.subject || []).map(s => `<option value="${s}">${s}</option>`).join('');
   document.getElementById('t_filterTerm').innerHTML = '<option value="">كل الترمات</option>' +
     (allLists.terms || []).map(s => `<option value="${s}">${s}</option>`).join('');
-  document.getElementById('e_filterSubject').innerHTML = '<option value="">كل المواد</option>' +
-    (allLists.subject || []).map(s => `<option value="${s}">${s}</option>`).join('');
 
   document.getElementById('t_filterSubject').addEventListener('change', loadTasks);
   document.getElementById('t_filterTerm').addEventListener('change', loadTasks);
-  document.getElementById('e_filterSubject').addEventListener('change', loadEnrichments);
-  document.getElementById('e_filterType').addEventListener('change', loadEnrichments);
+  document.getElementById('e_filterType').addEventListener('change', () => loadEnrichments(1));
 
   document.getElementById('addTaskBtn').addEventListener('click', () => openTaskModal());
   document.getElementById('closeTaskModal').addEventListener('click', closeTaskModal);
@@ -46,13 +43,40 @@ async function init() {
   document.getElementById('closeEnrichModal').addEventListener('click', closeEnrichModal);
   document.getElementById('cancelEnrichBtn').addEventListener('click', closeEnrichModal);
   document.getElementById('enrichForm').addEventListener('submit', submitEnrichForm);
+  document.getElementById('backToSubjectsBtn').addEventListener('click', showSubjectCards);
 
   document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
 
   loadTasks();
-  loadEnrichments();
+  renderEnrichSubjectCards();
+}
+
+/* ================= بطاقات المواد (الإثراءات) ================= */
+let currentEnrichSubject = null;
+
+function renderEnrichSubjectCards() {
+  const subjects = user.role === 'admin' ? (allLists.subject || []) : splitOwn(user.subject);
+  const grid = document.getElementById('enrichSubjectGrid');
+  if (!subjects.length) { grid.innerHTML = '<p class="empty-state">لا يوجد مواد مسندة</p>'; return; }
+  grid.innerHTML = subjects.map(s => `<div class="subject-card" onclick="openEnrichSubject('${s.replace(/'/g, "\\'")}')">${s}</div>`).join('');
+  document.getElementById('enrichDetailView').hidden = true;
+  grid.hidden = false;
+}
+
+function splitOwn(v) { return (v || '').split(',').map(s => s.trim()).filter(Boolean); }
+
+function openEnrichSubject(subject) {
+  currentEnrichSubject = subject;
+  document.getElementById('enrichSubjectGrid').hidden = true;
+  document.getElementById('enrichDetailView').hidden = false;
+  document.getElementById('enrichDetailTitle').textContent = subject;
+  loadEnrichments(1);
+}
+
+function showSubjectCards() {
+  renderEnrichSubjectCards();
 }
 
 function setupTabs() {
@@ -216,39 +240,43 @@ let currentEnrichPage = 1;
 
 async function loadEnrichments(page = currentEnrichPage) {
   currentEnrichPage = page;
-  const body = document.getElementById('enrichmentsTableBody');
-  body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
+  const grid = document.getElementById('enrichmentsGrid');
+  grid.innerHTML = '<p class="loading-row">جارٍ التحميل...</p>';
 
   const filters = {
-    subject: document.getElementById('e_filterSubject').value || undefined,
-    contentType: document.getElementById('e_filterType').value || undefined
+    subject: currentEnrichSubject || undefined,
+    contentType: document.getElementById('e_filterType').value || undefined,
+    showAll: true
   };
 
   try {
-    const result = await mirqatApi('tasks', 'getEnrichments', { filters, page, pageSize: 25 });
+    const result = await mirqatApi('tasks', 'getEnrichments', { filters, page, pageSize: 12 });
     enrichCache = result.rows;
     if (!enrichCache.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد إثراءات</td></tr>';
+      grid.innerHTML = '<p class="empty-state">لا يوجد إثراءات لهذه المادة بعد</p>';
     } else {
-      body.innerHTML = enrichCache.map(en => `
-      <tr>
-        <td data-label="العنوان">${en.title}</td>
-        <td data-label="النوع">${en.content_type}</td>
-        <td data-label="المادة">${en.subject || '—'}</td>
-        <td data-label="الصف">${en.grades || '—'}</td>
-        <td data-label="الرابط"><a href="${en.link}" target="_blank" rel="noopener">فتح</a></td>
-        <td>
-          <div class="row-actions">
-            <button class="btn btn-outline btn-sm" ${en.can_edit ? '' : 'disabled title="انتهت مهلة التعديل (6 أيام)"'} onclick="editEnrichment(${en.id})">تعديل</button>
-            <button class="btn btn-danger btn-sm" ${en.can_delete ? '' : 'disabled title="انتهت مهلة الحذف (6 ساعات)"'} onclick="askDelete('enrichment', ${en.id}, '${en.title.replace(/'/g, "\\'")}')">حذف</button>
+      grid.innerHTML = enrichCache.map(en => {
+        const embedUrl = mirqatEmbedUrl(en.link);
+        return `
+        <div class="enrichment-card">
+          ${embedUrl
+            ? `<iframe class="enrichment-embed" src="${embedUrl}" allowfullscreen loading="lazy"></iframe>`
+            : `<div class="enrichment-embed" style="display:flex;align-items:center;justify-content:center;"><a href="${en.link}" target="_blank" rel="noopener" style="color:#fff;">فتح الرابط ↗</a></div>`}
+          <div class="ec-body">
+            <div class="ec-title">${en.title}</div>
+            <div class="ec-meta">${en.content_type} — ${en.grades || 'كل الصفوف'} ${en.sections || ''}</div>
+            <div class="ec-actions">
+              <button class="btn btn-outline btn-sm" ${en.can_edit ? '' : 'disabled title="انتهت مهلة التعديل (6 أيام)"'} onclick="editEnrichment(${en.id})">تعديل</button>
+              <button class="btn btn-danger btn-sm" ${en.can_delete ? '' : 'disabled title="انتهت مهلة الحذف (6 ساعات)"'} onclick="askDelete('enrichment', ${en.id}, '${en.title.replace(/'/g, "\\'")}')">حذف</button>
+            </div>
           </div>
-        </td>
-      </tr>
-    `).join('');
+        </div>
+      `;
+      }).join('');
     }
     mirqatRenderPagination('enrichPaginationBar', result, (p) => loadEnrichments(p));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
+    grid.innerHTML = `<p class="empty-state">تعذّر التحميل: ${e.message}</p>`;
   }
 }
 
@@ -262,7 +290,7 @@ function openEnrichModal(item = null) {
   document.getElementById('enrichModalTitle').textContent = item ? 'تعديل إثراء' : 'إضافة إثراء';
   document.getElementById('ef_title').value = item?.title || '';
   document.getElementById('ef_content_type').value = item?.content_type || 'فيديو';
-  document.getElementById('ef_subject').value = item?.subject || '';
+  document.getElementById('ef_subject').value = item?.subject || currentEnrichSubject || '';
   document.getElementById('ef_term').value = item?.term || '';
   document.getElementById('ef_branch').value = item?.branch || '';
   document.getElementById('ef_stages').value = item?.stages || '';

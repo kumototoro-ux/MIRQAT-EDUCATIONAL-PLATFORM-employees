@@ -657,12 +657,7 @@ function renderLog(el) {
       <input type="date" id="l_date" title="تاريخ الرصد">
       <button class="btn btn-outline" id="l_filterBtn">بحث</button>
     </div>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>الطالب</th><th>النوع</th><th>التكليف</th><th>الدرجة</th><th>التاريخ</th><th></th></tr></thead>
-        <tbody id="l_body"><tr><td colspan="6" class="empty-state">اختر الترم والأسبوع ثم اضغط بحث</td></tr></tbody>
-      </table>
-    </div>
+    <div class="roster-cards-grid" id="l_grid"><p class="empty-state">اختر الترم والأسبوع ثم اضغط بحث</p></div>
     <div class="pagination-bar" id="l_pagination"></div>
   `;
 
@@ -682,11 +677,11 @@ async function loadLog(page = currentLogPage) {
   const term = document.getElementById('l_term').value;
   const week = document.getElementById('l_week').value;
   const date = document.getElementById('l_date').value;
-  const body = document.getElementById('l_body');
+  const grid = document.getElementById('l_grid');
 
-  if (!term || !week) { body.innerHTML = '<tr><td colspan="6" class="empty-state">اختر الترم والأسبوع أولًا</td></tr>'; return; }
+  if (!term || !week) { grid.innerHTML = '<p class="empty-state">اختر الترم والأسبوع أولًا</p>'; return; }
 
-  body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
+  grid.innerHTML = '<p class="loading-row">جارٍ التحميل...</p>';
   const filters = { subject: currentSubject, term, week };
   if (date) filters.recordedDate = date;
   if (user.role === 'admin' && selectedTeacher) filters.employeeId = selectedTeacher.id;
@@ -694,27 +689,59 @@ async function loadLog(page = currentLogPage) {
   try {
     const result = await mirqatApi('grading', 'getGradingRecords', { filters, page, pageSize: 25 });
     if (!result.rows.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد سجلات مطابقة</td></tr>';
+      grid.innerHTML = '<p class="empty-state">لا يوجد كشوفات رصد مطابقة</p>';
     } else {
-      body.innerHTML = result.rows.map(r => `
-        <tr>
-          <td data-label="الطالب">${r.student_name || r.student_id}</td>
-          <td data-label="النوع">${r.eval_type || '—'}</td>
-          <td data-label="التكليف">${r.task_name || '—'}</td>
-          <td data-label="الدرجة">${r.earned_score ?? '—'} / ${r.max_score ?? '—'}</td>
-          <td data-label="التاريخ">${r.recorded_date || '—'}</td>
-          <td>
-            <div class="row-actions">
-              <button class="btn btn-outline btn-sm" ${r.can_edit ? '' : 'disabled title="انتهت مهلة التعديل (6 أيام)"'} onclick="openEditScore('${r.id}', ${r.earned_score})">تعديل</button>
-              <button class="btn btn-danger btn-sm" ${r.can_delete ? '' : 'disabled title="انتهت مهلة الحذف (6 ساعات)"'} onclick="askDelete('${r.id}')">حذف</button>
-            </div>
-          </td>
-        </tr>
+      grid.innerHTML = result.rows.map(r => `
+        <div class="roster-card" onclick="openGradingBatchDetail('${r.batch_id}')">
+          <div class="rc-title">${r.task_name || 'بدون اسم'}</div>
+          <div class="rc-meta">${r.eval_type || ''} — من ${r.max_score ?? '—'}<br>${r.grades || ''} ${r.sections || ''}<br>${r.recorded_date || ''} — ${r.employee_name || ''}</div>
+          <span class="rc-count">${r.studentCount} طالب</span>
+        </div>
       `).join('');
     }
     mirqatRenderPagination('l_pagination', result, (p) => loadLog(p));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
+    grid.innerHTML = `<p class="empty-state">تعذّر التحميل: ${e.message}</p>`;
+  }
+}
+
+/* ---------------- تفاصيل كشف رصد واحد (كل الطلاب) ---------------- */
+let currentOpenGradingBatchId = null;
+
+async function openGradingBatchDetail(batchId) {
+  currentOpenGradingBatchId = batchId;
+  mirqatOpenDrawer({ title: 'جارٍ التحميل...', bodyHtml: '<p class="loading-row">جارٍ التحميل...</p>' });
+  await renderGradingBatchDetail(batchId);
+}
+
+async function renderGradingBatchDetail(batchId) {
+  try {
+    const rows = await mirqatApi('grading', 'getGradingBatchDetail', { batchId }, { cache: false });
+    const first = rows[0];
+    const bodyHtml = `
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>الطالب</th><th>الدرجة</th><th></th></tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td data-label="الطالب">${r.student_name || r.student_id}</td>
+                <td data-label="الدرجة">${r.earned_score ?? '—'} / ${r.max_score ?? '—'}</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-outline btn-sm" ${r.can_edit ? '' : 'disabled title="انتهت مهلة التعديل (6 أيام)"'} onclick="openEditScore('${r.id}', ${r.earned_score})">تعديل</button>
+                    <button class="btn btn-danger btn-sm" ${r.can_delete ? '' : 'disabled title="انتهت مهلة الحذف (6 ساعات)"'} onclick="askDelete('${r.id}')">حذف</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    mirqatOpenDrawer({ title: first.task_name || 'كشف رصد', bodyHtml });
+  } catch (e) {
+    mirqatOpenDrawer({ title: 'خطأ', bodyHtml: `<p class="empty-state">تعذّر التحميل: ${e.message}</p>` });
   }
 }
 
@@ -736,6 +763,7 @@ async function submitEdit() {
     }, { cache: false });
     if (result.failed && result.failed.length) { errorEl.textContent = result.failed[0].reason; return; }
     document.getElementById('editModal').hidden = true;
+    if (currentOpenGradingBatchId) renderGradingBatchDetail(currentOpenGradingBatchId);
     loadLog();
   } catch (e) { errorEl.textContent = e.message; }
 }
@@ -749,6 +777,7 @@ async function performDelete() {
     const result = await mirqatApi('grading', 'deleteRosterRecords', { ids: [deleteTargetId] }, { cache: false });
     closeConfirmModal();
     if (result.note) alert(result.note);
+    if (currentOpenGradingBatchId) renderGradingBatchDetail(currentOpenGradingBatchId);
     loadLog();
   } catch (e) { alert('تعذّر الحذف: ' + e.message); }
 }

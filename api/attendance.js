@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
@@ -32,6 +33,8 @@ export default async function handler(req, res) {
         return await saveAttendanceRoster(req, res, user, body);
       case 'getAttendanceRecords':
         return await getAttendanceRecords(req, res, user, body);
+      case 'getAttendanceBatchDetail':
+        return await getAttendanceBatchDetail(req, res, user, body);
       case 'getFinishedWeekRecords':
         return await getFinishedWeekRecords(req, res, user, body);
       case 'getStats':
@@ -76,6 +79,7 @@ async function saveAttendanceRoster(req, res, user, { records } = {}) {
     return fail(res, 'لا يوجد سجلات لحفظها', 400);
   }
 
+  const batchId = crypto.randomUUID();
   const rows = records.map(r => ({
     student_id: r.student_id,
     student_name: r.student_name || null,
@@ -89,7 +93,8 @@ async function saveAttendanceRoster(req, res, user, { records } = {}) {
     subject: r.subject || null,
     employee_id: user.employeeId,
     employee_name: user.name,
-    person_type: user.role
+    person_type: user.role,
+    batch_id: batchId
   }));
 
   const { data, error } = await supabase.from('attendance').insert(rows).select();
@@ -100,34 +105,78 @@ async function saveAttendanceRoster(req, res, user, { records } = {}) {
 }
 
 /* ---------------- سجلات الموظف نفسه (أدمن يرى الكل مع فلاتر) — مُرقَّم ---------------- */
-async function getAttendanceRecords(req, res, user, { filters = {}, page, pageSize } = {}) {
-  let query = supabase.from('attendance').select('*', { count: 'exact' });
+/* ---------------- سجلات التحضير مُجمَّعة ككشوفات (كشف واحد لكل عملية تحضير) ---------------- */
+async function getAttendanceRecords(req, res, user, { filters = {} } = {}) {
+  if (!filters.term || !filters.week || !filters.day) {
+    return fail(res, 'اختر الترم والأسبوع واليوم أولًا', 400);
+  }
+
+  let query = supabase.from('attendance').select('*');
 
   if (user.role !== 'admin') {
     query = query.eq('employee_id', user.employeeId);
-  } else {
-    if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
+  } else if (filters.employeeId) {
+    query = query.eq('employee_id', filters.employeeId);
   }
 
   if (filters.branch) query = query.eq('branch', filters.branch);
-  if (filters.term) query = query.eq('term', filters.term);
-  if (filters.week) query = query.eq('week', filters.week);
-  if (filters.day) query = query.eq('day', filters.day);
-
+  query = query.eq('term', filters.term).eq('week', filters.week).eq('day', filters.day);
   query = query.order('recorded_at', { ascending: false });
 
-  const paged = applyPagination(query, { page, pageSize });
-  const { data, error, count } = await paged.query;
+  const { data, error } = await query.limit(5000);
   if (error) return fail(res, 'تعذّر جلب السجلات', 500);
 
   const now = Date.now();
-  const editableRows = data.map(r => ({
+  const groups = new Map();
+  (data || []).forEach(r => {
+    const key = r.batch_id || ('legacy-' + r.id);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        batch_id: key,
+        subject: r.subject, branch: r.branch, term: r.term, week: r.week, day: r.day, period: r.period,
+        employee_name: r.employee_name, employee_id: r.employee_id,
+        recorded_at: r.recorded_at, studentCount: 0, statuses: {}
+      });
+    }
+    const g = groups.get(key);
+    g.studentCount += 1;
+    g.statuses[r.status] = (g.statuses[r.status] || 0) + 1;
+    if (new Date(r.recorded_at) < new Date(g.recorded_at)) g.recorded_at = r.recorded_at;
+  });
+
+  const rows = Array.from(groups.values()).map(g => ({
+    ...g,
+    can_edit: user.role === 'admin' || (now - new Date(g.recorded_at).getTime()) < EDIT_WINDOW_HOURS.attendance * 3600 * 1000,
+    can_delete: user.role === 'admin' || (now - new Date(g.recorded_at).getTime()) < DELETE_WINDOW_HOURS.attendance * 3600 * 1000
+  })).sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+
+  return ok(res, paginatedResult(rows, rows.length, 1, rows.length || 1));
+}
+
+/* ---------------- تفاصيل كشف تحضير واحد (كل الطلاب) ---------------- */
+async function getAttendanceBatchDetail(req, res, user, { batchId } = {}) {
+  if (!batchId) return fail(res, 'معرّف الكشف مطلوب', 400);
+
+  let query;
+  if (batchId.startsWith('legacy-')) {
+    query = supabase.from('attendance').select('*').eq('id', batchId.replace('legacy-', ''));
+  } else {
+    query = supabase.from('attendance').select('*').eq('batch_id', batchId);
+  }
+  if (user.role !== 'admin') query = query.eq('employee_id', user.employeeId);
+
+  const { data, error } = await query.order('student_name', { ascending: true });
+  if (error) return fail(res, 'تعذّر جلب تفاصيل الكشف', 500);
+  if (!data.length) return fail(res, 'الكشف غير موجود أو لا تملك صلاحية عرضه', 404);
+
+  const now = Date.now();
+  const rows = data.map(r => ({
     ...r,
     can_edit: user.role === 'admin' || (now - new Date(r.recorded_at).getTime()) < EDIT_WINDOW_HOURS.attendance * 3600 * 1000,
     can_delete: user.role === 'admin' || (now - new Date(r.recorded_at).getTime()) < DELETE_WINDOW_HOURS.attendance * 3600 * 1000
   }));
 
-  return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
+  return ok(res, rows);
 }
 
 /* ---------------- إحصائيات سريعة (عدّ فقط — بلا جلب صفوف) للأسبوع الدراسي الحالي — أدمن فقط ---------------- */

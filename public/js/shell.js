@@ -150,6 +150,16 @@ function mirqatToggleSidebarCollapse() {
   localStorage.setItem('mirqat_sidebar_collapsed', collapsed ? '1' : '0');
 }
 
+/** يحوّل رابط يوتيوب أو جوجل درايف إلى رابط تضمين (iframe) قابل للتشغيل داخل الصفحة مباشرة — أو null إن لم يكن مدعومًا */
+function mirqatEmbedUrl(link) {
+  if (!link) return null;
+  let m = link.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  m = link.match(/drive\.google\.com\/file\/d\/([\w-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  return null;
+}
+
 /**
  * يقفل أي قائمة اختيار (select) لا تملك سوى قيمة واحدة فعلية — يحوّلها لعرض ثابت
  * بدل قائمة قابلة للاختيار. يُستخدم لموظف مرتبط بقيمة واحدة فقط (فرع/مرحلة/صف واحد...).

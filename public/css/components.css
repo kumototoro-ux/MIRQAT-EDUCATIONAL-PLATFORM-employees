@@ -417,6 +417,65 @@ table.data-table {
 .account-card .ac-status.suspended { background: rgba(176,58,46,0.12); color: var(--warn); }
 .account-card .ac-date { font-size: 11px; color: var(--muted); margin-top: 10px; }
 
+/* ---------- بطاقات المواد (الإثراءات) ---------- */
+.subject-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+.subject-card {
+  background: linear-gradient(135deg, #3a7d61, #234a39);
+  color: #fff;
+  border-radius: 16px;
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform 0.12s ease;
+}
+.subject-card:hover { transform: translateY(-3px); }
+
+/* ---------- بطاقات الإثراء/الفيديو مع تضمين مباشر ---------- */
+.enrichment-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.enrichment-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.enrichment-embed { width: 100%; aspect-ratio: 16/9; border: none; background: #000; }
+.enrichment-card .ec-body { padding: 12px 14px; }
+.enrichment-card .ec-title { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.enrichment-card .ec-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.enrichment-card .ec-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+/* ---------- بطاقات الكشوفات (تحضير/رصد مُجمَّع) ---------- */
+.roster-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.roster-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.roster-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.roster-card .rc-title { font-weight: 800; color: var(--ink); font-size: 14px; }
+.roster-card .rc-meta { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.7; }
+.roster-card .rc-count {
+  display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 700;
+  background: rgba(47,107,82,0.1); color: var(--primary); padding: 3px 10px; border-radius: 20px;
+}
+
 /* ---------- شريط التحديد السريع + شرائح الحالة (تحضير/رصد سريع) ---------- */
 .quick-mark-bar {
   display: flex;
