@@ -299,63 +299,59 @@ table.data-table {
 .data-table tbody tr.clickable { cursor: pointer; }
 .data-table tbody tr.clickable:hover { background: var(--paper); }
 
-/* ---------- لوحة جانبية منزلقة (تفاصيل صف) ---------- */
-.drawer-overlay {
+/* ---------- نافذة تفاصيل مركزية (بطاقة بالوسط على سطح المكتب، Bottom Sheet على الجوال) ---------- */
+.detail-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(30, 42, 36, 0.45);
+  background: rgba(30, 42, 36, 0.5);
   z-index: 90;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.drawer-overlay.open { opacity: 1; pointer-events: auto; }
-
-.drawer {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  max-width: 420px;
-  background: var(--surface);
-  z-index: 91;
-  display: flex;
-  flex-direction: column;
-  transform: translateX(-100%);
-  transition: transform 0.25s ease;
-  box-shadow: 8px 0 24px rgba(0,0,0,0.15);
-}
-
-.drawer.open { transform: translateX(0); }
-
-.drawer-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--line);
-  position: relative;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
 }
 
-.drawer-header::before {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; left: 0;
-  height: 3px;
+.detail-overlay.open { opacity: 1; pointer-events: auto; }
+
+.detail-modal {
+  background: var(--surface);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 440px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transform: scale(0.96) translateY(8px);
+  opacity: 0;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease;
+}
+
+.detail-modal.open { transform: scale(1) translateY(0); opacity: 1; }
+
+.detail-handle { display: none; }
+
+/* الرأس والتذييل يشتركان مع نمط النوافذ المنبثقة العادية */
+.detail-modal .drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; border-bottom: 1px solid var(--line); position: relative;
+}
+.detail-modal .drawer-header::before {
+  content: ''; position: absolute; top: 0; right: 0; left: 0; height: 3px;
   background: linear-gradient(90deg, var(--primary), var(--gold));
 }
-
-.drawer-header h2 { margin: 0; font-size: 17px; color: var(--primary-dark); font-weight: 700; }
-
+.detail-modal .drawer-header h2 { margin: 0; font-size: 17px; color: var(--primary-dark); font-weight: 700; }
 .drawer-close {
   width: auto; margin: 0; padding: 4px 8px;
   background: none; border: none; font-size: 18px; color: var(--muted); cursor: pointer;
 }
 .drawer-close:hover { color: var(--warn); }
-
-.drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+.detail-modal .drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+.detail-modal .drawer-footer { display: flex; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--line); }
 
 .drawer-field {
   display: flex;
@@ -363,16 +359,27 @@ table.data-table {
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
+  gap: 12px;
 }
+.drawer-field .label { color: var(--muted); flex-shrink: 0; }
+.drawer-field .value { color: var(--ink); font-weight: 600; text-align: left; }
 
-.drawer-field .label { color: var(--muted); }
-.drawer-field .value { color: var(--ink); font-weight: 600; }
-
-.drawer-footer {
-  display: flex;
-  gap: 10px;
-  padding: 16px 22px;
-  border-top: 1px solid var(--line);
+@media (max-width: 560px) {
+  .detail-overlay { align-items: flex-end; padding: 0; }
+  .detail-modal {
+    max-width: 100%;
+    max-height: 88vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+  }
+  .detail-modal.open { transform: translateY(0); }
+  .detail-handle {
+    display: block;
+    width: 40px; height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    margin: 10px auto 0;
+  }
 }
 
 /* ---------- شريط ترقيم صفحات ---------- */
@@ -412,5 +419,32 @@ table.data-table {
 .page-ellipsis { padding: 6px 4px; color: var(--muted); }
 
 @media (max-width: 560px) {
-  .drawer { max-width: 100%; }
+  .cards-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- قسم نظرة عامة (إحصائيات + رسم بياني + آخر سجلات) ---------- */
+.overview-hint {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px;
+  margin: 20px 0;
+}
+
+.chart-card h3 {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.chart-card canvas { max-height: 260px; }
