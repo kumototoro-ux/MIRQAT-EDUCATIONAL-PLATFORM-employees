@@ -34,7 +34,16 @@ function mirqatLogout() {
   window.location.href = '/index.html';
 }
 
-async function mirqatApi(file, action, body = {}) {
+async function mirqatApi(file, action, body = {}, opts = {}) {
+  const useCache = opts.cache !== false;
+  const ttl = opts.ttl || 30000; // 30 ثانية افتراضيًا — كافية لتفادي تكرار نفس البحث
+
+  const cacheKey = file + ':' + action + ':' + JSON.stringify(body);
+  if (useCache) {
+    const hit = mirqatCache.get(cacheKey);
+    if (hit && (Date.now() - hit.time) < ttl) return hit.data;
+  }
+
   const session = mirqatGetSession();
   const res = await fetch(`/api/${file}`, {
     method: 'POST',
@@ -46,8 +55,17 @@ async function mirqatApi(file, action, body = {}) {
   });
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || 'حدث خطأ');
+
+  if (useCache) {
+    mirqatCache.set(cacheKey, { data: json.data, time: Date.now() });
+  } else {
+    // أي عملية كتابة (إضافة/تعديل/حذف) تُفرغ الكاش بالكامل لضمان عدم عرض بيانات قديمة
+    mirqatCache.clear();
+  }
   return json.data;
 }
+
+const mirqatCache = new Map();
 
 function mirqatBuildNav(activeKey, user) {
   const nav = document.getElementById('sidebarNav');
@@ -106,15 +124,16 @@ function mirqatInitShell(activeKey) {
   return user;
 }
 
-/* ================= لوحة جانبية مشتركة (تُحقَن تلقائيًا مرة واحدة) ================= */
+/* ================= نافذة تفاصيل مركزية مشتركة (تُحقَن تلقائيًا مرة واحدة) ================= */
 function mirqatEnsureDrawer() {
   if (document.getElementById('mirqatDrawerOverlay')) return;
 
   const overlay = document.createElement('div');
-  overlay.className = 'drawer-overlay';
+  overlay.className = 'detail-overlay';
   overlay.id = 'mirqatDrawerOverlay';
   overlay.innerHTML = `
-    <div class="drawer" id="mirqatDrawer" onclick="event.stopPropagation()">
+    <div class="detail-modal" id="mirqatDrawer" onclick="event.stopPropagation()">
+      <div class="detail-handle"></div>
       <div class="drawer-header">
         <h2 id="mirqatDrawerTitle"></h2>
         <button class="drawer-close" id="mirqatDrawerClose">✕</button>
@@ -126,7 +145,6 @@ function mirqatEnsureDrawer() {
   document.body.appendChild(overlay);
 
   document.getElementById('mirqatDrawerClose').addEventListener('click', mirqatCloseDrawer);
-  // النقر على المنطقة المعتمة خارج اللوحة يغلقها أيضًا (مو نافذة تأكيد حرجة)
   overlay.addEventListener('click', mirqatCloseDrawer);
 }
 
@@ -137,6 +155,7 @@ function mirqatOpenDrawer({ title, bodyHtml, footerHtml = '' }) {
   document.getElementById('mirqatDrawerFooter').innerHTML = footerHtml;
   document.getElementById('mirqatDrawerOverlay').classList.add('open');
   document.getElementById('mirqatDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 function mirqatCloseDrawer() {
@@ -145,6 +164,7 @@ function mirqatCloseDrawer() {
   if (!overlay) return;
   overlay.classList.remove('open');
   drawer.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 /** يبني حقل عرض بسيط (تسمية + قيمة) داخل اللوحة الجانبية */
