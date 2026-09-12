@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * أي إضافة/تعديل/حذف هنا يُحدّث grade_aggregation تلقائيًا عبر trigger
@@ -97,9 +98,9 @@ async function saveRoster(req, res, user, { records } = {}) {
   return ok(res, data, 201);
 }
 
-/* ---------------- سجلات المعلم نفسه (أدمن يرى الكل) ---------------- */
-async function getGradingRecords(req, res, user, { filters = {} } = {}) {
-  let query = supabase.from('daily_follow_up').select('*');
+/* ---------------- سجلات المعلم نفسه (أدمن يرى الكل) — مُرقَّم ---------------- */
+async function getGradingRecords(req, res, user, { filters = {}, page, pageSize } = {}) {
+  let query = supabase.from('daily_follow_up').select('*', { count: 'exact' });
   query = scopeToOwner(query, user);
 
   if (filters.branch) query = query.eq('branch', filters.branch);
@@ -110,9 +111,10 @@ async function getGradingRecords(req, res, user, { filters = {} } = {}) {
 
   query = query.order('recorded_date', { ascending: false });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب سجلات الرصد', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 /* ---------------- تعديل جماعي ---------------- */

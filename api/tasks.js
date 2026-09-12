@@ -2,6 +2,7 @@ import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * Actions — المهام والتكاليف والاختبارات (task_assignments):
@@ -63,8 +64,8 @@ function scopeToOwner(query, user, col = 'employee_id') {
 
 /* ================= المهام والتكاليف والاختبارات ================= */
 
-async function getTasks(req, res, user, { filters = {} } = {}) {
-  let query = supabase.from('task_assignments').select('*');
+async function getTasks(req, res, user, { filters = {}, page, pageSize } = {}) {
+  let query = supabase.from('task_assignments').select('*', { count: 'exact' });
   query = scopeToOwner(query, user);
 
   if (filters.branch) query = query.eq('branch', filters.branch);
@@ -76,9 +77,10 @@ async function getTasks(req, res, user, { filters = {} } = {}) {
 
   query = query.order('due_date', { ascending: true });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب التكاليف', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 async function saveTask(req, res, user, { id, data } = {}) {
@@ -174,8 +176,8 @@ async function getPendingTasks(req, res, user, { filters = {} } = {}) {
 
 /* ================= الإثراءات والفيديوهات ================= */
 
-async function getEnrichments(req, res, user, { filters = {} } = {}) {
-  let query = supabase.from('enrichment_content').select('*');
+async function getEnrichments(req, res, user, { filters = {}, page, pageSize } = {}) {
+  let query = supabase.from('enrichment_content').select('*', { count: 'exact' });
   query = scopeToOwner(query, user);
 
   if (filters.branch) query = query.eq('branch', filters.branch);
@@ -187,9 +189,10 @@ async function getEnrichments(req, res, user, { filters = {} } = {}) {
 
   query = query.order('publish_date', { ascending: false });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب الإثراءات', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 async function saveEnrichment(req, res, user, { id, data } = {}) {

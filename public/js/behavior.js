@@ -84,17 +84,19 @@ async function loadStudentRecord(studentId, name) {
 }
 
 /* ---------------- سجلاتي الأخيرة ---------------- */
-async function loadRecords() {
+let currentRecordsPage = 1;
+
+async function loadRecords(page = currentRecordsPage) {
+  currentRecordsPage = page;
   const body = document.getElementById('recordsTableBody');
   body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
 
   try {
-    const records = await mirqatApi('behavior', 'getBehaviorRecords', {});
-    if (!records.length) {
+    const result = await mirqatApi('behavior', 'getBehaviorRecords', { page, pageSize: 25 });
+    if (!result.rows.length) {
       body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد سجلات بعد</td></tr>';
-      return;
-    }
-    body.innerHTML = records.slice(0, 50).map(r => `
+    } else {
+      body.innerHTML = result.rows.map(r => `
       <tr>
         <td data-label="الطالب">${r.student_name || r.student_id}</td>
         <td data-label="الحالة">${r.status || '—'}</td>
@@ -104,6 +106,8 @@ async function loadRecords() {
         <td><button class="btn btn-danger btn-sm" onclick="askDelete('${r.id}')">حذف</button></td>
       </tr>
     `).join('');
+    }
+    mirqatRenderPagination('recordsPaginationBar', result, (p) => loadRecords(p));
   } catch (e) {
     body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
   }

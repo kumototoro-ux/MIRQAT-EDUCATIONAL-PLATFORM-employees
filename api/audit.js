@@ -2,6 +2,7 @@ import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { applyEmployeeScope } from '../lib/scope.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * Actions:
@@ -42,10 +43,10 @@ function requireAdmin(user) {
 }
 
 /* ---------------- سجل التتبع ---------------- */
-async function getAuditLog(req, res, user, { filters = {} } = {}) {
+async function getAuditLog(req, res, user, { filters = {}, page, pageSize } = {}) {
   if (!requireAdmin(user)) return fail(res, 'هذا الإجراء يتطلب صلاحية أدمن', 403);
 
-  let query = supabase.from('audit_log').select('*');
+  let query = supabase.from('audit_log').select('*', { count: 'exact' });
 
   if (filters.empId) query = query.eq('emp_id', filters.empId);
   if (filters.action) query = query.eq('action', filters.action);
@@ -59,11 +60,12 @@ async function getAuditLog(req, res, user, { filters = {} } = {}) {
     query = query.gte('ts', sevenDaysAgo);
   }
 
-  query = query.order('ts', { ascending: false }).limit(500);
+  query = query.order('ts', { ascending: false });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب سجل التتبع', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 async function getAuditActionTypes(req, res, user) {

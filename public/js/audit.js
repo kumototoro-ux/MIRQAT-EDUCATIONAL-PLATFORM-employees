@@ -15,13 +15,16 @@ async function init() {
       '<option value="">كل الإجراءات</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
   } catch { /* silent */ }
 
-  document.getElementById('applyFiltersBtn').addEventListener('click', loadAuditLog);
+  document.getElementById('applyFiltersBtn').addEventListener('click', () => loadAuditLog(1));
   document.getElementById('loadSummaryBtn').addEventListener('click', loadSummary);
 
   loadAuditLog();
 }
 
-async function loadAuditLog() {
+let currentAuditPage = 1;
+
+async function loadAuditLog(page = currentAuditPage) {
+  currentAuditPage = page;
   const body = document.getElementById('auditTableBody');
   body.innerHTML = '<tr><td colspan="5" class="loading-row">جارٍ التحميل...</td></tr>';
 
@@ -33,12 +36,11 @@ async function loadAuditLog() {
   };
 
   try {
-    const rows = await mirqatApi('audit', 'getAuditLog', { filters });
-    if (!rows.length) {
+    const result = await mirqatApi('audit', 'getAuditLog', { filters, page, pageSize: 25 });
+    if (!result.rows.length) {
       body.innerHTML = '<tr><td colspan="5" class="empty-state">لا يوجد حركات ضمن هذا النطاق</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map(r => `
+    } else {
+      body.innerHTML = result.rows.map(r => `
       <tr>
         <td data-label="الوقت">${new Date(r.ts).toLocaleString('ar-SA')}</td>
         <td data-label="الموظف">${r.emp_name || r.emp_id || '—'}</td>
@@ -47,6 +49,8 @@ async function loadAuditLog() {
         <td data-label="التفاصيل">${r.details || '—'}</td>
       </tr>
     `).join('');
+    }
+    mirqatRenderPagination('auditPaginationBar', result, (p) => loadAuditLog(p));
   } catch (e) {
     body.innerHTML = `<tr><td colspan="5" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
   }

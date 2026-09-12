@@ -2,6 +2,8 @@ const user = mirqatInitShell('employees');
 let allLists = {};
 let editingId = null;
 let deleteTargetId = null;
+let currentPage = 1;
+let employeesCache = [];
 
 if (user) {
   if (user.role !== 'admin') {
@@ -26,7 +28,7 @@ async function init() {
   buildCheckboxGroup('cg_subject', allLists.subject);
 
   ['searchInput', 'filterBranch', 'filterRole'].forEach(id => {
-    document.getElementById(id).addEventListener('input', debounce(loadEmployees, 300));
+    document.getElementById(id).addEventListener('input', debounce(() => loadEmployees(1), 300));
   });
 
   document.getElementById('addEmployeeBtn').addEventListener('click', () => openEmployeeModal());
@@ -38,7 +40,7 @@ async function init() {
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
 
-  loadEmployees();
+  loadEmployees(1);
 }
 
 function fillSelect(id, options = [], placeholder = null) {
@@ -48,10 +50,7 @@ function fillSelect(id, options = [], placeholder = null) {
 }
 
 function buildCheckboxGroup(containerId, options = []) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = options.map(o => `
-    <label><input type="checkbox" value="${o}"> ${o}</label>
-  `).join('');
+  document.getElementById(containerId).innerHTML = options.map(o => `<label><input type="checkbox" value="${o}"> ${o}</label>`).join('');
 }
 
 function getCheckedValues(containerId) {
@@ -60,9 +59,7 @@ function getCheckedValues(containerId) {
 
 function setCheckedValues(containerId, commaString) {
   const values = (commaString || '').split(',').map(v => v.trim()).filter(Boolean);
-  document.querySelectorAll(`#${containerId} input`).forEach(i => {
-    i.checked = values.includes(i.value);
-  });
+  document.querySelectorAll(`#${containerId} input`).forEach(i => { i.checked = values.includes(i.value); });
 }
 
 function debounce(fn, ms) {
@@ -70,9 +67,10 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-async function loadEmployees() {
+async function loadEmployees(page = currentPage) {
+  currentPage = page;
   const body = document.getElementById('employeesTableBody');
-  body.innerHTML = '<tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>';
+  body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
 
   const filters = {
     search: document.getElementById('searchInput').value.trim() || undefined,
@@ -81,44 +79,60 @@ async function loadEmployees() {
   };
 
   try {
-    const employees = await mirqatApi('employees', 'list', { filters });
-    window.__employeesCache = employees;
-    renderTable(employees);
+    const result = await mirqatApi('employees', 'list', { filters, page, pageSize: 25 });
+    employeesCache = result.rows;
+    renderTable(result.rows);
+    mirqatRenderPagination('paginationBar', result, (p) => loadEmployees(p));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="7" class="empty-state">تعذّر تحميل الموظفين: ${e.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر تحميل الموظفين: ${e.message}</td></tr>`;
   }
 }
 
 function renderTable(employees) {
   const body = document.getElementById('employeesTableBody');
-
   if (!employees.length) {
-    body.innerHTML = '<tr><td colspan="7" class="empty-state">لا يوجد موظفون مطابقون</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد موظفون مطابقون</td></tr>';
     return;
   }
-
   body.innerHTML = employees.map(e => `
-    <tr>
+    <tr class="clickable" onclick="openEmployeeDrawer('${e.id}')">
       <td data-label="المعرّف">${e.id}</td>
       <td data-label="الاسم">${e.name_ar}</td>
       <td data-label="الدور">${e.role === 'admin' ? 'أدمن' : 'معلم'}</td>
       <td data-label="الفرع">${e.branch || '—'}</td>
       <td data-label="الصفوف">${e.grades || '—'}</td>
       <td data-label="المواد">${e.subject || '—'}</td>
-      <td>
-        <div class="row-actions">
-          <button class="btn btn-outline btn-sm" onclick="editEmployee('${e.id}')">تعديل</button>
-          <button class="btn btn-danger btn-sm" onclick="askDeleteEmployee('${e.id}', '${e.name_ar.replace(/'/g, "\\'")}')">حذف</button>
-        </div>
-      </td>
     </tr>
   `).join('');
 }
 
-function editEmployee(id) {
-  const e = (window.__employeesCache || []).find(x => x.id === id);
+function openEmployeeDrawer(id) {
+  const e = employeesCache.find(x => x.id === id);
   if (!e) return;
-  openEmployeeModal(e);
+
+  const bodyHtml = [
+    mirqatDrawerField('المعرّف', e.id),
+    mirqatDrawerField('الاسم', e.name_ar),
+    mirqatDrawerField('الدور', e.role === 'admin' ? 'أدمن' : 'معلم'),
+    mirqatDrawerField('رقم الهوية', e.national_id),
+    mirqatDrawerField('الفرع', e.branch),
+    mirqatDrawerField('المرحلة', e.stages),
+    mirqatDrawerField('الصفوف', e.grades),
+    mirqatDrawerField('الشعب', e.sections),
+    mirqatDrawerField('المواد', e.subject)
+  ].join('');
+
+  const footerHtml = `
+    <button class="btn btn-outline" onclick="mirqatCloseDrawer(); editEmployee('${e.id}')">تعديل</button>
+    <button class="btn btn-danger" onclick="mirqatCloseDrawer(); askDeleteEmployee('${e.id}', '${e.name_ar.replace(/'/g, "\\'")}')">حذف</button>
+  `;
+
+  mirqatOpenDrawer({ title: e.name_ar, bodyHtml, footerHtml });
+}
+
+function editEmployee(id) {
+  const e = employeesCache.find(x => x.id === id);
+  if (e) openEmployeeModal(e);
 }
 
 function openEmployeeModal(employee = null) {
@@ -138,9 +152,7 @@ function openEmployeeModal(employee = null) {
   document.getElementById('employeeModal').hidden = false;
 }
 
-function closeEmployeeModal() {
-  document.getElementById('employeeModal').hidden = true;
-}
+function closeEmployeeModal() { document.getElementById('employeeModal').hidden = true; }
 
 async function submitEmployeeForm(e) {
   e.preventDefault();
@@ -158,22 +170,19 @@ async function submitEmployeeForm(e) {
     national_id: document.getElementById('f_national_id').value.trim() || null
   };
 
-  if (!data.name_ar) {
-    errorEl.textContent = 'اسم الموظف مطلوب';
-    return;
-  }
+  if (!data.name_ar) { errorEl.textContent = 'اسم الموظف مطلوب'; return; }
 
   const saveBtn = document.getElementById('saveEmployeeBtn');
   saveBtn.disabled = true;
 
   try {
     if (editingId) {
-      await mirqatApi('employees', 'update', { id: editingId, data });
+      await mirqatApi('employees', 'update', { id: editingId, data }, { cache: false });
     } else {
-      await mirqatApi('employees', 'create', { data });
+      await mirqatApi('employees', 'create', { data }, { cache: false });
     }
     closeEmployeeModal();
-    loadEmployees();
+    loadEmployees(editingId ? currentPage : 1);
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -195,9 +204,9 @@ function closeConfirmModal() {
 async function performDelete() {
   if (!deleteTargetId) return;
   try {
-    await mirqatApi('employees', 'delete', { id: deleteTargetId });
+    await mirqatApi('employees', 'delete', { id: deleteTargetId }, { cache: false });
     closeConfirmModal();
-    loadEmployees();
+    loadEmployees(currentPage);
   } catch (e) {
     alert('تعذّر حذف الموظف: ' + e.message);
   }

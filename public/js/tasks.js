@@ -90,7 +90,10 @@ function fillFormSelects() {
 }
 
 /* ================= المهام ================= */
-async function loadTasks() {
+let currentTasksPage = 1;
+
+async function loadTasks(page = currentTasksPage) {
+  currentTasksPage = page;
   const body = document.getElementById('tasksTableBody');
   body.innerHTML = '<tr><td colspan="8" class="loading-row">جارٍ التحميل...</td></tr>';
 
@@ -100,12 +103,12 @@ async function loadTasks() {
   };
 
   try {
-    tasksCache = await mirqatApi('tasks', 'getTasks', { filters });
+    const result = await mirqatApi('tasks', 'getTasks', { filters, page, pageSize: 25 });
+    tasksCache = result.rows;
     if (!tasksCache.length) {
       body.innerHTML = '<tr><td colspan="8" class="empty-state">لا يوجد تكاليف</td></tr>';
-      return;
-    }
-    body.innerHTML = tasksCache.map(t => `
+    } else {
+      body.innerHTML = tasksCache.map(t => `
       <tr>
         <td data-label="التكليف">${t.task_name}</td>
         <td data-label="المادة">${t.subject || '—'}</td>
@@ -122,6 +125,8 @@ async function loadTasks() {
         </td>
       </tr>
     `).join('');
+    }
+    mirqatRenderPagination('tasksPaginationBar', result, (p) => loadTasks(p));
   } catch (e) {
     body.innerHTML = `<tr><td colspan="8" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
   }
@@ -207,7 +212,10 @@ async function submitTaskForm(e) {
 }
 
 /* ================= الإثراءات ================= */
-async function loadEnrichments() {
+let currentEnrichPage = 1;
+
+async function loadEnrichments(page = currentEnrichPage) {
+  currentEnrichPage = page;
   const body = document.getElementById('enrichmentsTableBody');
   body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
 
@@ -217,12 +225,12 @@ async function loadEnrichments() {
   };
 
   try {
-    enrichCache = await mirqatApi('tasks', 'getEnrichments', { filters });
+    const result = await mirqatApi('tasks', 'getEnrichments', { filters, page, pageSize: 25 });
+    enrichCache = result.rows;
     if (!enrichCache.length) {
       body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد إثراءات</td></tr>';
-      return;
-    }
-    body.innerHTML = enrichCache.map(en => `
+    } else {
+      body.innerHTML = enrichCache.map(en => `
       <tr>
         <td data-label="العنوان">${en.title}</td>
         <td data-label="النوع">${en.content_type}</td>
@@ -237,6 +245,8 @@ async function loadEnrichments() {
         </td>
       </tr>
     `).join('');
+    }
+    mirqatRenderPagination('enrichPaginationBar', result, (p) => loadEnrichments(p));
   } catch (e) {
     body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
   }

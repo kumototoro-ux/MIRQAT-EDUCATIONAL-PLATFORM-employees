@@ -62,7 +62,8 @@ async function searchOwners() {
   try {
     let list;
     if (currentKind === 'staff') {
-      list = await mirqatApi('employees', 'list', { filters: { search: q } });
+      const res = await mirqatApi('employees', 'list', { filters: { search: q } });
+      list = res.rows;
     } else {
       const res = await mirqatApi('students', 'list', { filters: { search: q }, page: 1, pageSize: 10 });
       list = res.rows;
@@ -162,8 +163,8 @@ async function buildOwnerDirectory() {
   ownerDirectory = new Map();
   try {
     if (currentKind === 'staff') {
-      const employees = await mirqatApi('employees', 'list', { filters: {} });
-      employees.forEach(e => ownerDirectory.set(e.id, e.name_ar));
+      const employees = await mirqatApi('employees', 'list', { filters: {}, page: 1, pageSize: 100 });
+      employees.rows.forEach(e => ownerDirectory.set(e.id, e.name_ar));
     } else {
       const res = await mirqatApi('students', 'list', { filters: {}, page: 1, pageSize: 100 });
       res.rows.forEach(s => ownerDirectory.set(s.id, s.name_ar));

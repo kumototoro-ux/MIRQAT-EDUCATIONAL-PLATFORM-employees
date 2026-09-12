@@ -3,13 +3,14 @@ import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { generateNextId } from '../lib/idGen.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * إدارة سجلات الموظفين (بيانات الموظف نفسه — ليس حساب الدخول، ذلك في api/auth.js).
  * كل العمليات هنا محصورة بالأدمن — دليل الموظفين بيانات حساسة.
  *
  * Actions:
- *  - list    { filters? }
+ *  - list    { filters?, page?, pageSize? } → مُرقَّم
  *  - create  { data }
  *  - update  { id, data }
  *  - delete  { id }   → حذف ناعم
@@ -42,8 +43,8 @@ export default async function handler(req, res) {
   }
 }
 
-async function listEmployees(req, res, { filters = {} } = {}) {
-  let query = supabase.from('employees').select('*').is('deleted_at', null);
+async function listEmployees(req, res, { filters = {}, page, pageSize } = {}) {
+  let query = supabase.from('employees').select('*', { count: 'exact' }).is('deleted_at', null);
 
   if (filters.branch) query = query.eq('branch', filters.branch);
   if (filters.role) query = query.eq('role', filters.role);
@@ -51,9 +52,10 @@ async function listEmployees(req, res, { filters = {} } = {}) {
 
   query = query.order('id', { ascending: true });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب بيانات الموظفين', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 async function createEmployee(req, res, user, { data } = {}) {

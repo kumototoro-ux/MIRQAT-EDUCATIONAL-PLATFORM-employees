@@ -2,6 +2,7 @@ import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * Actions:
@@ -86,9 +87,9 @@ async function saveAttendanceRoster(req, res, user, { records } = {}) {
   return ok(res, data, 201);
 }
 
-/* ---------------- سجلات المعلم نفسه (أدمن يرى الكل مع فلاتر) ---------------- */
-async function getAttendanceRecords(req, res, user, { filters = {} } = {}) {
-  let query = supabase.from('attendance').select('*');
+/* ---------------- سجلات المعلم نفسه (أدمن يرى الكل مع فلاتر) — مُرقَّم ---------------- */
+async function getAttendanceRecords(req, res, user, { filters = {}, page, pageSize } = {}) {
+  let query = supabase.from('attendance').select('*', { count: 'exact' });
 
   if (user.role !== 'admin') {
     query = query.eq('employee_id', user.employeeId);
@@ -102,9 +103,10 @@ async function getAttendanceRecords(req, res, user, { filters = {} } = {}) {
 
   query = query.order('recorded_at', { ascending: false });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب السجلات', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 /* ---------------- تعديل جماعي ---------------- */

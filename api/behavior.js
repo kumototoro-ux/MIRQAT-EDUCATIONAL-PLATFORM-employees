@@ -2,6 +2,7 @@ import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * Actions:
@@ -41,24 +42,30 @@ function scopeToOwner(query, user, col = 'employee_id') {
   return query.eq(col, user.employeeId);
 }
 
-async function getBehaviorRecords(req, res, user, { studentId, filters = {} } = {}) {
-  let query = supabase.from('behavior').select('*');
-
+async function getBehaviorRecords(req, res, user, { studentId, filters = {}, page, pageSize } = {}) {
   if (studentId) {
-    // سجل تراكمي لطالب معيّن — متاح لأي معلم مسجّل دخول لعرض سجله الكامل
-    query = query.eq('student_id', studentId);
-  } else {
-    query = scopeToOwner(query, user);
-    if (filters.branch) query = query.eq('branch', filters.branch);
-    if (filters.term) query = query.eq('term', filters.term);
-    if (filters.week) query = query.eq('week', filters.week);
+    // سجل تراكمي لطالب معيّن — غير مُرقَّم عمدًا (محدود طبيعيًا بعدد سجلات طالب واحد)
+    const { data, error } = await supabase
+      .from('behavior')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+    if (error) return fail(res, 'تعذّر جلب سجلات السلوك', 500);
+    return ok(res, data);
   }
+
+  let query = supabase.from('behavior').select('*', { count: 'exact' });
+  query = scopeToOwner(query, user);
+  if (filters.branch) query = query.eq('branch', filters.branch);
+  if (filters.term) query = query.eq('term', filters.term);
+  if (filters.week) query = query.eq('week', filters.week);
 
   query = query.order('created_at', { ascending: false });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب سجلات السلوك', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 async function saveBehaviorRow(req, res, user, { id, data } = {}) {
