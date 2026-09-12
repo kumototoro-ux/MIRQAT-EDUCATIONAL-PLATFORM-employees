@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | الإعدادات</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=8">
-<link rel="stylesheet" href="/css/components.css?v=8">
+<link rel="stylesheet" href="/css/shell.css?v=9">
+<link rel="stylesheet" href="/css/components.css?v=9">
 </head>
 <body>
   <div id="shell" class="shell">
@@ -21,6 +21,11 @@
     <div class="shell-main">
       <header class="topbar">
         <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-search">
+          <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="topbarSearchInput" placeholder="ابحث عن طالب بالاسم أو المعرّف...">
+          <div class="topbar-search-results" id="topbarSearchResults"></div>
+        </div>
         <div class="topbar-user">
           <button class="user-menu-btn" id="userMenuBtn">
             <span class="user-avatar-circle">؟</span>
@@ -297,7 +302,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=8"></script>
+  <script src="/js/shell.js?v=9"></script>
   <script src="/js/settings.js?v=3"></script>
 </body>
 </html>

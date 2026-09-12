@@ -155,6 +155,69 @@
   position: relative;
 }
 
+/* بحث سريع بالبار العلوي (سطح المكتب) */
+.topbar-search {
+  position: relative;
+  flex: 1;
+  max-width: 340px;
+  margin: 0 20px;
+  display: none;
+}
+
+.topbar-search input {
+  width: 100%;
+  padding: 9px 14px 9px 36px;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background: var(--paper);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+}
+.topbar-search input:focus { outline: none; border-color: var(--primary); background: var(--surface); }
+
+.topbar-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.topbar-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0; left: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 55;
+  display: none;
+}
+.topbar-search-results.open { display: block; }
+
+.topbar-search-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+.topbar-search-item:last-child { border-bottom: none; }
+.topbar-search-item:hover { background: var(--paper); }
+.topbar-search-item .tsr-type { color: var(--muted); font-size: 11px; }
+
+@media (min-width: 769px) {
+  .topbar-search { display: block; }
+}
+
 /* زر المستخدم بالبار العلوي + القائمة المنسدلة */
 .user-menu-btn {
   display: flex; align-items: center; gap: 8px;
@@ -179,20 +242,21 @@
 .user-menu-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  right: 0;
   min-width: 220px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.16);
   padding: 8px;
   opacity: 0;
+  visibility: hidden;
   transform: translateY(-6px);
   pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 35;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  z-index: 60;
 }
-.user-menu-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.user-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
 
 .user-menu-header {
   display: flex; align-items: center; gap: 10px;

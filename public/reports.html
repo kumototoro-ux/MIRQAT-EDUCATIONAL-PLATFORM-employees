@@ -5,22 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | التقارير</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=8">
-<link rel="stylesheet" href="/css/components.css?v=8">
+<link rel="stylesheet" href="/css/shell.css?v=9">
+<link rel="stylesheet" href="/css/components.css?v=9">
 </head>
 <body>
   <div id="shell" class="shell">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
         <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
-        <span id="schoolName">مِرقاة</span>
+        <span id="schoolName" class="sidebar-brand-text">مِرقاة</span>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="إغلاق القائمة">✕</button>
       </div>
       <nav class="sidebar-nav" id="sidebarNav"></nav>
+      <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="طي/توسيع القائمة" title="طي/توسيع القائمة">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+      </button>
     </aside>
 
     <div class="shell-main">
       <header class="topbar">
         <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-search">
+          <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="topbarSearchInput" placeholder="ابحث عن طالب بالاسم أو المعرّف...">
+          <div class="topbar-search-results" id="topbarSearchResults"></div>
+        </div>
         <div class="topbar-user">
           <button class="user-menu-btn" id="userMenuBtn">
             <span class="user-avatar-circle">؟</span>
@@ -40,44 +49,70 @@
       </header>
 
       <main class="content">
-        <h1 class="page-title">التقارير وبطاقة الطالب</h1>
+        <div id="accessDenied" style="display:none;"><p class="empty-state">هذه الصفحة تتطلب صلاحية أدمن</p></div>
 
-        <div class="toolbar">
-          <input type="text" id="studentSearch" placeholder="ابحث عن طالب بالاسم أو المعرّف...">
-          <select id="termSelect"></select>
-        </div>
-        <div class="chip-list" id="searchResults" style="margin-bottom:20px;"></div>
+        <div id="reportsBody">
+          <h1 class="page-title">التقارير</h1>
 
-        <div id="reportSection" style="display:none;">
-          <div class="card" style="margin-bottom:20px; border-right-color:var(--primary)">
-            <div class="card-value" id="rc_name" style="font-size:20px;"></div>
-            <div class="card-label" id="rc_meta"></div>
+          <div class="tabs no-print" id="reportTypeTabs">
+            <button class="tab-btn active" data-rtype="student">تقرير طالب</button>
+            <button class="tab-btn" data-rtype="employee">تقرير موظف</button>
+            <button class="tab-btn" data-rtype="attendance">تقرير تحضير</button>
+            <button class="tab-btn" data-rtype="grading">تقرير أداء (رصد)</button>
           </div>
 
-          <div class="table-wrap" style="margin-bottom:28px;">
-            <table class="data-table">
-              <thead>
-                <tr><th>المادة</th><th>المجموع</th><th>ظاهر لولي الأمر؟</th><th></th></tr>
-              </thead>
-              <tbody id="gradesTableBody"></tbody>
-            </table>
+          <!-- ============ فلاتر تقرير الطالب ============ -->
+          <div class="toolbar no-print" id="filters-student">
+            <input type="text" id="rs_search" placeholder="ابحث باسم الطالب...">
+            <div class="chip-list" id="rs_results"></div>
+            <select id="rs_term"></select>
+            <button class="btn btn-primary" id="rs_generateBtn" disabled>إنشاء التقرير</button>
           </div>
 
-          <div id="comparisonResult" class="table-wrap" style="display:none; margin-bottom:28px;"></div>
+          <!-- ============ فلاتر تقرير الموظف ============ -->
+          <div class="toolbar no-print" id="filters-employee" hidden>
+            <input type="text" id="re_search" placeholder="ابحث باسم الموظف...">
+            <div class="chip-list" id="re_results"></div>
+            <button class="btn btn-primary" id="re_generateBtn" disabled>إنشاء التقرير</button>
+          </div>
 
-          <h2 style="font-size:16px; color:var(--primary-dark)">آخر سجلات السلوك</h2>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>التاريخ</th><th>الحالة</th><th>الدرجة</th><th>الملاحظة</th></tr></thead>
-              <tbody id="behaviorTableBody"></tbody>
-            </table>
+          <!-- ============ فلاتر تقرير التحضير ============ -->
+          <div class="toolbar no-print" id="filters-attendance" hidden>
+            <select id="ra_branch"><option value="">كل الفروع</option></select>
+            <select id="ra_term"><option value="">كل الترمات</option></select>
+            <select id="ra_week"><option value="">كل الأسابيع</option></select>
+            <select id="ra_day">
+              <option value="">كل الأيام</option>
+              <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option>
+              <option value="الثلاثاء">الثلاثاء</option><option value="الأربعاء">الأربعاء</option>
+              <option value="الخميس">الخميس</option>
+            </select>
+            <button class="btn btn-primary" id="ra_generateBtn">إنشاء التقرير</button>
+          </div>
+
+          <!-- ============ فلاتر تقرير الأداء (رصد) ============ -->
+          <div class="toolbar no-print" id="filters-grading" hidden>
+            <select id="rg_branch"><option value="">كل الفروع</option></select>
+            <select id="rg_term"><option value="">كل الترمات</option></select>
+            <select id="rg_week"><option value="">كل الأسابيع</option></select>
+            <select id="rg_subject"><option value="">كل المواد</option></select>
+            <select id="rg_grades"><option value="">كل الصفوف</option></select>
+            <button class="btn btn-primary" id="rg_generateBtn">إنشاء التقرير</button>
+          </div>
+
+          <div id="reportPreviewWrap" style="display:none; margin-top:20px;">
+            <div class="no-print" style="margin-bottom:14px; display:flex; gap:10px;">
+              <button class="btn btn-primary" id="printReportBtn">🖨 طباعة / تنزيل PDF</button>
+              <button class="btn btn-outline" id="closeReportBtn">إغلاق التقرير</button>
+            </div>
+            <div class="report-preview" id="reportPreview"></div>
           </div>
         </div>
       </main>
     </div>
   </div>
 
-  <script src="/js/shell.js?v=8"></script>
-  <script src="/js/reports.js?v=2"></script>
+  <script src="/js/shell.js?v=9"></script>
+  <script src="/js/reports.js?v=1"></script>
 </body>
 </html>

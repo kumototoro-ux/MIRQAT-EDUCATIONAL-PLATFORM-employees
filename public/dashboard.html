@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | لوحة التحكم</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=8">
+<link rel="stylesheet" href="/css/shell.css?v=9">
+<link rel="stylesheet" href="/css/components.css?v=9">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="shell" class="shell">
@@ -24,6 +26,11 @@
     <div class="shell-main">
       <header class="topbar">
         <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-search">
+          <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="topbarSearchInput" placeholder="ابحث عن طالب بالاسم أو المعرّف...">
+          <div class="topbar-search-results" id="topbarSearchResults"></div>
+        </div>
         <div class="topbar-user">
           <button class="user-menu-btn" id="userMenuBtn">
             <span class="user-avatar-circle">؟</span>
@@ -43,7 +50,7 @@
       </header>
 
       <main class="content">
-        <h1 class="page-title">لوحة التحكم</h1>
+        <h1 class="page-title" id="welcomeTitle">لوحة التحكم</h1>
 
         <div class="cards-grid" id="summaryCards">
           <div class="card skeleton"></div>
@@ -51,11 +58,39 @@
           <div class="card skeleton"></div>
           <div class="card skeleton"></div>
         </div>
+
+        <div class="dash-grid">
+          <div class="dash-col-main">
+            <div class="chart-card" id="attendanceTrendCard" style="display:none;">
+              <h3>اتجاه التحضير — آخر 6 أسابيع</h3>
+              <canvas id="attendanceTrendChart"></canvas>
+            </div>
+            <div class="chart-card" id="gradingTrendCard" style="display:none; margin-top:16px;">
+              <h3>اتجاه الرصد — آخر 6 أسابيع</h3>
+              <canvas id="gradingTrendChart"></canvas>
+            </div>
+            <div class="chart-card" id="behaviorDonutCard" style="display:none; margin-top:16px;">
+              <h3>توزيع السلوك العام</h3>
+              <canvas id="behaviorDonutChart"></canvas>
+            </div>
+          </div>
+
+          <div class="dash-col-side">
+            <div class="side-panel">
+              <h3>الاختبارات القادمة</h3>
+              <div id="upcomingExamsList"><p class="loading-row">جارٍ التحميل...</p></div>
+            </div>
+            <div class="side-panel" id="activityPanel" style="display:none;">
+              <h3>آخر الأنشطة بالنظام</h3>
+              <div id="recentActivityList"><p class="loading-row">جارٍ التحميل...</p></div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   </div>
 
-  <script src="/js/shell.js?v=8"></script>
-  <script src="/js/dashboard.js?v=2"></script>
+  <script src="/js/shell.js?v=9"></script>
+  <script src="/js/dashboard.js?v=3"></script>
 </body>
 </html>

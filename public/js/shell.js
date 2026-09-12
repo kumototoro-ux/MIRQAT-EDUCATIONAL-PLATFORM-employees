@@ -23,18 +23,18 @@ function mirqatIcon(key) {
 }
 
 const MIRQAT_NAV = [
-  { key: 'dashboard', label: 'لوحة التحكم', href: '/dashboard.html', ready: true, bottomNav: true },
-  { key: 'students', label: 'الطلاب', href: '/students.html', ready: true },
+  { key: 'dashboard', label: 'لوحة التحكم', href: '/dashboard.html', ready: true, bottomNav: 'all' },
+  { key: 'students', label: 'الطلاب', href: '/students.html', ready: true, bottomNav: 'admin' },
   { key: 'employees', label: 'الموظفون', href: '/employees.html', ready: true, adminOnly: true },
   { key: 'accounts', label: 'حسابات الدخول', href: '/accounts.html', ready: true, adminOnly: true },
   { key: 'schedule', label: 'التقويم والجدول', href: '/schedule.html', ready: true },
-  { key: 'attendance', label: 'التحضير والغياب', href: '/attendance.html', ready: true, bottomNav: true },
-  { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: true },
-  { key: 'grading', label: 'رصد الدرجات', href: '/grading.html', ready: true, bottomNav: true },
-  { key: 'behavior', label: 'السلوك', href: '/behavior.html', ready: true },
-  { key: 'reports', label: 'التقارير', href: '/reports.html', ready: true, bottomNav: true },
+  { key: 'attendance', label: 'التحضير والغياب', href: '/attendance.html', ready: true, bottomNav: 'teacher' },
+  { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: true, bottomNav: 'teacher' },
+  { key: 'grading', label: 'رصد الدرجات', href: '/grading.html', ready: true, bottomNav: 'teacher' },
+  { key: 'behavior', label: 'السلوك', href: '/behavior.html', ready: true, adminOnly: true },
+  { key: 'reports', label: 'التقارير', href: '/reports.html', ready: true, adminOnly: true, bottomNav: 'admin' },
   { key: 'audit', label: 'سجل التتبع', href: '/audit.html', ready: true, adminOnly: true },
-  { key: 'settings', label: 'الإعدادات', href: '/settings.html', ready: true, adminOnly: true }
+  { key: 'settings', label: 'الإعدادات', href: '/settings.html', ready: true, adminOnly: true, bottomNav: 'admin' }
 ];
 
 function mirqatGetSession() {
@@ -107,7 +107,7 @@ function mirqatBuildNav(activeKey, user) {
   // البار السفلي للجوال فقط — أهم 4 صفحات
   const bottomNav = document.getElementById('mobileBottomNav');
   if (bottomNav) {
-    const bottomItems = items.filter(i => i.bottomNav && i.ready);
+    const bottomItems = items.filter(i => i.ready && (i.bottomNav === 'all' || i.bottomNav === user.role));
     bottomNav.innerHTML = bottomItems.map(item => `
       <a class="bottom-nav-item${item.key === activeKey ? ' active' : ''}" href="${item.href}">
         ${mirqatIcon(item.key)}
@@ -148,6 +148,47 @@ function mirqatCloseSidebar() {
 function mirqatToggleSidebarCollapse() {
   const collapsed = document.getElementById('shell').classList.toggle('sidebar-collapsed');
   localStorage.setItem('mirqat_sidebar_collapsed', collapsed ? '1' : '0');
+}
+
+/* ================= بحث سريع بالبار العلوي (طلاب) ================= */
+function mirqatSetupTopbarSearch() {
+  const input = document.getElementById('topbarSearchInput');
+  const results = document.getElementById('topbarSearchResults');
+  if (!input || !results) return;
+
+  // تعبئة تلقائية لو وصلنا من نتيجة بحث بصفحة أخرى
+  const params = new URLSearchParams(window.location.search);
+  const q0 = params.get('q');
+  if (q0) input.value = q0;
+
+  let debounceTimer;
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (q.length < 2) { results.classList.remove('open'); return; }
+    debounceTimer = setTimeout(() => mirqatRunTopbarSearch(q, results), 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!results.contains(e.target) && e.target !== input) results.classList.remove('open');
+  });
+}
+
+async function mirqatRunTopbarSearch(q, results) {
+  try {
+    const res = await mirqatApi('students', 'list', { filters: { search: q }, page: 1, pageSize: 8 });
+    if (!res.rows.length) {
+      results.innerHTML = '<div class="topbar-search-item">لا نتائج</div>';
+    } else {
+      results.innerHTML = res.rows.map(s => `
+        <a class="topbar-search-item" href="/students.html?q=${encodeURIComponent(s.name_ar)}">
+          <span>${s.name_ar}</span>
+          <span class="tsr-type">${s.id} — ${s.grades || ''}</span>
+        </a>
+      `).join('');
+    }
+    results.classList.add('open');
+  } catch { /* صامت */ }
 }
 
 function mirqatInitShell(activeKey) {
@@ -192,6 +233,8 @@ function mirqatInitShell(activeKey) {
   }
 
   document.getElementById('logoutBtn')?.addEventListener('click', mirqatLogout);
+
+  mirqatSetupTopbarSearch();
 
   // تحقق فعلي من صلاحية الجلسة مع الخادم — يسجّل خروج تلقائي إن كانت منتهية
   mirqatApi('auth', 'session').catch(mirqatLogout);

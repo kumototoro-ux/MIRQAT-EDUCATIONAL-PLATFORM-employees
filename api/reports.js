@@ -27,6 +27,7 @@ export default async function handler(req, res) {
 
   const user = getSessionUser(req);
   if (!user) return fail(res, 'الجلسة غير صالحة أو منتهية', 401);
+  if (user.role !== 'admin') return fail(res, 'صفحة التقارير مقيّدة بصلاحية أدمن فقط', 403);
 
   const { action, ...body } = req.body || {};
 

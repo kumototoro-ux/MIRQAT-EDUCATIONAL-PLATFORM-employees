@@ -42,6 +42,14 @@ async function init() {
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
 
+  // وصول من نتيجة بحث البار العلوي — نعبّي حقل البحث ونفلتر فورًا
+  const urlParams = new URLSearchParams(window.location.search);
+  const q0 = urlParams.get('q');
+  if (q0) {
+    document.getElementById('searchInput').value = q0;
+    handleFiltersChanged();
+  }
+
   loadOverview();
 }
 
