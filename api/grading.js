@@ -5,7 +5,7 @@ import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
 import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
-import { resolveCurrentWeek, getWeeksUpToToday } from '../lib/academicWeek.js';
+import { resolveCurrentWeek, getWeeksUpToToday, formatWeekLabel } from '../lib/academicWeek.js';
 
 /**
  * كل شيء هنا مبني حول "المادة" — المعلم لا يرى ولا يرصد إلا لمواده المسندة
@@ -176,63 +176,68 @@ async function getStats(req, res, user) {
     previousWeek = data;
   }
 
-  const countWhere = async (extra = {}) => {
-    let q = supabase.from('daily_follow_up').select('*', { count: 'exact', head: true });
-    q = scopeToOwner(q, user);
-    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
-    const { count } = await q;
-    return count || 0;
-  };
-
-  const totalAllTime = await countWhere();
-  const totalThisWeek = currentWeek ? await countWhere({ term: currentWeek.term, week: currentWeek.week }) : 0;
-  const totalPreviousWeek = previousWeek ? await countWhere({ term: previousWeek.term, week: previousWeek.week }) : 0;
-
   const { data: evalRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'continuous_eval_types');
-  const byEvalType = await Promise.all(
-    (evalRows || []).map(async r => ({
-      label: r.value,
-      count: currentWeek ? await countWhere({ term: currentWeek.term, week: currentWeek.week, eval_type: r.value }) : 0
-    }))
-  );
+  const evalTypes = (evalRows || []).map(r => r.value);
 
   const recentWeeks = await getWeeksUpToToday(6);
-  const weeklyTrend = await Promise.all(recentWeeks.map(async w => ({ label: w.week, count: await countWhere({ term: w.term, week: w.week }) })));
 
-  return ok(res, { currentWeek, totalAllTime, totalThisWeek, totalPreviousWeek, byEvalType: byEvalType.filter(e => e.count > 0), weeklyTrend });
+  // استعلام واحد يجيب كل الصفوف اللازمة (بدل عشرات الاستعلامات المنفصلة)
+  let rowsQuery = supabase.from('daily_follow_up').select('term, week, eval_type');
+  rowsQuery = scopeToOwner(rowsQuery, user);
+  const { data: rows } = await rowsQuery.limit(20000);
+  const allRows = rows || [];
+
+  const matchWeek = (r, w) => w && r.term === w.term && r.week === w.week;
+
+  const totalAllTime = allRows.length;
+  const totalThisWeek = currentWeek ? allRows.filter(r => matchWeek(r, currentWeek)).length : 0;
+  const totalPreviousWeek = previousWeek ? allRows.filter(r => matchWeek(r, previousWeek)).length : 0;
+
+  const byEvalType = evalTypes.map(et => ({
+    label: et,
+    count: currentWeek ? allRows.filter(r => matchWeek(r, currentWeek) && r.eval_type === et).length : 0
+  })).filter(e => e.count > 0);
+
+  const weeklyTrend = recentWeeks.map(w => ({
+    label: formatWeekLabel(w),
+    count: allRows.filter(r => matchWeek(r, w)).length
+  }));
+
+  return ok(res, { currentWeek, totalAllTime, totalThisWeek, totalPreviousWeek, byEvalType, weeklyTrend });
 }
 
-/* ---------------- نظرة عامة على كل الفروع: متوسط الأداء الفعلي (نسبة الدرجات المكتسبة) ---------------- */
+/* ---------------- نظرة عامة على كل الفروع: متوسط الأداء الفعلي — استعلام واحد فقط ---------------- */
 async function getOverview(req, res, user) {
   const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
   const branches = (branchRows || []).map(r => r.value);
 
-  const perBranch = await Promise.all(branches.map(async branch => {
-    let q = supabase.from('daily_follow_up').select('earned_score, max_score').eq('branch', branch).limit(5000);
-    q = scopeToOwner(q, user);
-    const { data: rows } = await q;
+  let q = supabase.from('daily_follow_up').select('branch, term, week, earned_score, max_score');
+  q = scopeToOwner(q, user);
+  const { data: rows, error } = await q.limit(20000);
+  if (error) return fail(res, 'تعذّر جلب النظرة العامة', 500);
+  const allRows = rows || [];
 
-    const valid = (rows || []).filter(r => r.max_score > 0);
+  const perBranch = branches.map(branch => {
+    const branchRowsData = allRows.filter(r => r.branch === branch);
+    const valid = branchRowsData.filter(r => r.max_score > 0);
     const avgPct = valid.length
       ? Math.round((valid.reduce((sum, r) => sum + (r.earned_score / r.max_score) * 100, 0) / valid.length) * 10) / 10
       : 0;
-
-    return { branch, total: (rows || []).length, avgPct };
-  }));
+    return { branch, total: branchRowsData.length, avgPct };
+  });
 
   const weeks = await getWeeksUpToToday(12);
-  const trendByBranch = await Promise.all(branches.map(async branch => ({
+  const trendByBranch = branches.map(branch => ({
     branch,
-    series: await Promise.all(weeks.map(async w => {
-      let q = supabase.from('daily_follow_up').select('*', { count: 'exact', head: true }).eq('branch', branch).eq('term', w.term).eq('week', w.week);
-      q = scopeToOwner(q, user);
-      const { count } = await q;
-      return { label: w.week, count: count || 0 };
+    series: weeks.map(w => ({
+      label: formatWeekLabel(w),
+      count: allRows.filter(r => r.branch === branch && r.term === w.term && r.week === w.week).length
     }))
-  })));
+  }));
 
   return ok(res, { branches, perBranch, trendByBranch });
 }
+
 
 /* ---------------- إحصائيات مخصصة حسب فلتر محدد ---------------- */
 async function getFilteredStats(req, res, user, { branch, term, week, subject, grades } = {}) {

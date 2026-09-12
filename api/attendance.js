@@ -5,7 +5,7 @@ import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
 import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
-import { resolveCurrentWeek, getWeeksUpToToday } from '../lib/academicWeek.js';
+import { resolveCurrentWeek, getWeeksUpToToday, formatWeekLabel } from '../lib/academicWeek.js';
 
 /**
  * Actions:
@@ -146,87 +146,87 @@ async function getStats(req, res, user) {
     previousWeek = data;
   }
 
-  const countWhere = async (status, week, extra = {}) => {
-    let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
-    if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
-    if (week) q = q.eq('term', week.term).eq('week', week.week);
-    if (status) q = q.eq('status', status);
-    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
-    const { count } = await q;
-    return count || 0;
-  };
-
   const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
-
-  const total = currentWeek ? await countWhere(null, currentWeek) : 0;
-  const totalPreviousWeek = previousWeek ? await countWhere(null, previousWeek) : 0;
-  const byStatus = await Promise.all((statusRows || []).map(async r => ({ label: r.value, count: await countWhere(r.value, currentWeek) })));
+  const statuses = (statusRows || []).map(r => r.value);
 
   const recentWeeks = await getWeeksUpToToday(6);
-  const weeklyTrend = await Promise.all(recentWeeks.map(async w => ({ label: w.week, count: await countWhere(null, w) })));
+
+  // استعلام واحد يجيب كل الصفوف المطلوبة (بدل عشرات الاستعلامات المنفصلة لكل أسبوع/حالة)
+  let rowsQuery = supabase.from('attendance').select('status, term, week');
+  if (user.role !== 'admin') rowsQuery = rowsQuery.eq('employee_id', user.employeeId);
+  const { data: rows } = await rowsQuery.limit(20000);
+  const allRows = rows || [];
+
+  const matchWeek = (r, w) => w && r.term === w.term && r.week === w.week;
+
+  const total = currentWeek ? allRows.filter(r => matchWeek(r, currentWeek)).length : 0;
+  const totalPreviousWeek = previousWeek ? allRows.filter(r => matchWeek(r, previousWeek)).length : 0;
+  const byStatus = statuses.map(s => ({
+    label: s,
+    count: currentWeek ? allRows.filter(r => matchWeek(r, currentWeek) && r.status === s).length : 0
+  }));
+
+  const weeklyTrend = recentWeeks.map(w => ({
+    label: formatWeekLabel(w),
+    count: allRows.filter(r => matchWeek(r, w)).length
+  }));
 
   return ok(res, { currentWeek, total, totalPreviousWeek, byStatus, weeklyTrend });
 }
 
-/* ---------------- نظرة عامة على كل الفروع (من أول أسبوع لآخر أسبوع حالي) ---------------- */
+/* ---------------- نظرة عامة على كل الفروع (من أول أسبوع لآخر أسبوع حالي) — استعلام واحد فقط ---------------- */
 async function getOverview(req, res, user) {
   const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
   const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
   const branches = (branchRows || []).map(r => r.value);
   const statuses = (statusRows || []).map(r => r.value);
 
-  const countWhere = async (extra = {}) => {
-    let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
-    if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
-    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
-    const { count } = await q;
-    return count || 0;
-  };
+  let q = supabase.from('attendance').select('branch, status, term, week');
+  if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
+  const { data: rows, error } = await q.limit(20000);
+  if (error) return fail(res, 'تعذّر جلب النظرة العامة', 500);
+  const allRows = rows || [];
 
-  const perBranch = await Promise.all(branches.map(async branch => {
-    const total = await countWhere({ branch });
-    const byStatus = await Promise.all(statuses.map(async s => {
-      const count = await countWhere({ branch, status: s });
+  const perBranch = branches.map(branch => {
+    const branchRowsData = allRows.filter(r => r.branch === branch);
+    const total = branchRowsData.length;
+    const byStatus = statuses.map(s => {
+      const count = branchRowsData.filter(r => r.status === s).length;
       return { label: s, count, pct: total ? Math.round((count / total) * 1000) / 10 : 0 };
-    }));
+    });
     return { branch, total, byStatus };
-  }));
+  });
 
   const weeks = await getWeeksUpToToday(12);
-  const trendByBranch = await Promise.all(branches.map(async branch => ({
+  const trendByBranch = branches.map(branch => ({
     branch,
-    series: await Promise.all(weeks.map(async w => {
-      let q = supabase.from('attendance').select('*', { count: 'exact', head: true }).eq('branch', branch).eq('term', w.term).eq('week', w.week);
-      if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
-      const { count } = await q;
-      return { label: w.week, count: count || 0 };
+    series: weeks.map(w => ({
+      label: formatWeekLabel(w),
+      count: allRows.filter(r => r.branch === branch && r.term === w.term && r.week === w.week).length
     }))
-  })));
+  }));
 
   return ok(res, { branches, statuses, perBranch, trendByBranch });
 }
 
-/* ---------------- إحصائيات مخصصة حسب فلتر محدد ---------------- */
+/* ---------------- إحصائيات مخصصة حسب فلتر محدد — استعلام واحد فقط ---------------- */
 async function getFilteredStats(req, res, user, { branch, term, week, day, grades } = {}) {
   const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
   const statuses = (statusRows || []).map(r => r.value);
 
-  const countWhere = async (status) => {
-    let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
-    if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
-    if (branch) q = q.eq('branch', branch);
-    if (term) q = q.eq('term', term);
-    if (week) q = q.eq('week', week);
-    if (day) q = q.eq('day', day);
-    if (status) q = q.eq('status', status);
-    const { count } = await q;
-    return count || 0;
-  };
+  let q = supabase.from('attendance').select('status');
+  if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
+  if (branch) q = q.eq('branch', branch);
+  if (term) q = q.eq('term', term);
+  if (week) q = q.eq('week', week);
+  if (day) q = q.eq('day', day);
+  const { data: rows, error } = await q.limit(20000);
+  if (error) return fail(res, 'تعذّر جلب الإحصائيات', 500);
+  const allRows = rows || [];
 
-  const total = await countWhere();
-  const byStatus = await Promise.all(statuses.map(async s => ({ label: s, count: await countWhere(s) })));
+  const byStatus = statuses.map(s => ({ label: s, count: allRows.filter(r => r.status === s).length }));
 
-  return ok(res, { total, byStatus });
+  return ok(res, { total: allRows.length, byStatus });
 }
 
 
