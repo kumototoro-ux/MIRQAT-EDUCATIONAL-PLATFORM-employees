@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/styles.css?v=5">
 <link rel="stylesheet" href="/css/shell.css?v=3">
 <link rel="stylesheet" href="/css/components.css?v=6">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="shell" class="shell">
@@ -27,90 +28,44 @@
         </div>
       </header>
 
-      <main class="content">
-        <h1 class="page-title">السلوك</h1>
+      <main class="content" id="mainContent">
+        <h1 class="page-title">السلوك — نظرة عامة</h1>
+        <p class="overview-hint">هذه الصفحة لأدمن المدرسة فقط، وتعرض أداء الطلاب ككل — لا يمكن تصفّح سلوك طالب بعينه من هنا.</p>
 
-        <div class="toolbar">
-          <input type="text" id="studentSearch" placeholder="ابحث عن طالب لعرض سجله الكامل...">
-          <div class="spacer"></div>
-          <button class="btn btn-primary" id="addBehaviorBtn">+ إضافة سلوك</button>
+        <div class="cards-grid" id="statsCards">
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
         </div>
-        <div id="searchResults" class="chip-list" style="margin-bottom:14px;"></div>
 
-        <div id="studentRecordSection" style="display:none;">
-          <h2 style="font-size:16px; color:var(--primary-dark)" id="studentRecordTitle"></h2>
-          <div class="table-wrap" style="margin-bottom:28px;">
-            <table class="data-table">
-              <thead><tr><th>التاريخ</th><th>الحالة</th><th>الدرجة</th><th>الملاحظة</th><th>سجّلها</th></tr></thead>
-              <tbody id="studentRecordBody"></tbody>
-            </table>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;">
+          <div class="chart-card">
+            <h3>توزيع الحالات (إيجابي / سلبي)</h3>
+            <canvas id="statusChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>توزيع السجلات حسب الترم</h3>
+            <canvas id="termChart"></canvas>
           </div>
         </div>
 
-        <h1 class="page-title" style="font-size:18px;">سجلاتي الأخيرة</h1>
+        <div class="chart-card" id="branchChartCard" style="display:none;">
+          <h3>توزيع السجلات حسب الفرع</h3>
+          <canvas id="branchChart"></canvas>
+        </div>
+
+        <h2 style="font-size:16px; color:var(--primary-dark); margin-top:28px;">آخر 100 سجل (للمراجعة)</h2>
+        <div class="toolbar">
+          <select id="filterBranch"><option value="">كل الفروع</option></select>
+          <select id="filterTerm"><option value="">كل الترمات</option></select>
+          <select id="filterStatus"><option value="">كل الحالات</option></select>
+        </div>
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>الطالب</th><th>الحالة</th><th>الدرجة</th><th>الملاحظة</th><th>التاريخ</th><th></th></tr></thead>
+            <thead><tr><th>الطالب</th><th>الحالة</th><th>الدرجة</th><th>الفرع</th><th>الترم</th><th>سجّلها</th></tr></thead>
             <tbody id="recordsTableBody"><tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr></tbody>
           </table>
         </div>
-        <div class="pagination-bar" id="recordsPaginationBar"></div>
       </main>
-    </div>
-  </div>
-
-  <!-- نافذة إضافة سلوك -->
-  <div class="modal-overlay" id="behaviorModal" hidden>
-    <div class="modal">
-      <div class="modal-header"><h2>إضافة سلوك</h2><button class="modal-close" id="closeBehaviorModal">✕</button></div>
-      <div class="modal-body">
-        <form id="behaviorForm">
-          <div class="form-group">
-            <label>الطالب</label>
-            <input type="text" id="bf_student_search" placeholder="اكتب اسم الطالب..." autocomplete="off">
-            <div class="chip-list" id="bf_student_results" style="margin-top:6px;"></div>
-            <input type="hidden" id="bf_student_id">
-          </div>
-          <p id="bf_selected_student" style="font-size:13px; color:var(--primary); min-height:18px;"></p>
-          <div class="form-row">
-            <div class="form-group"><label>حالة السلوك</label><select id="bf_status"></select></div>
-            <div class="form-group"><label>الدرجة</label><input type="number" id="bf_score"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>الفرع</label><select id="bf_branch"></select></div>
-            <div class="form-group"><label>الترم</label><select id="bf_term"></select></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>الأسبوع</label><input type="text" id="bf_week"></div>
-            <div class="form-group">
-              <label>اليوم</label>
-              <select id="bf_day">
-                <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option>
-                <option value="الثلاثاء">الثلاثاء</option><option value="الأربعاء">الأربعاء</option>
-                <option value="الخميس">الخميس</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group"><label>الملاحظة</label><input type="text" id="bf_note"></div>
-          <p class="form-error" id="behaviorFormError"></p>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" form="behaviorForm" class="btn btn-primary" id="saveBehaviorBtn">حفظ</button>
-        <button type="button" class="btn btn-outline" id="cancelBehaviorBtn">إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- نافذة تأكيد الحذف -->
-  <div class="modal-overlay" id="confirmModal" hidden>
-    <div class="modal" style="max-width:380px">
-      <div class="modal-header"><h2>تأكيد الحذف</h2><button class="modal-close" id="closeConfirmModal">✕</button></div>
-      <div class="modal-body"><p class="confirm-message">سيتم حذف سجل السلوك هذا نهائيًا.</p></div>
-      <div class="modal-footer">
-        <button class="btn btn-danger" id="confirmDeleteBtn">حذف نهائيًا</button>
-        <button class="btn btn-outline" id="cancelConfirmBtn">تراجع</button>
-      </div>
     </div>
   </div>
 

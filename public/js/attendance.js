@@ -2,63 +2,159 @@ const user = mirqatInitShell('attendance');
 let allLists = {};
 let currentRoster = [];
 let deleteTargetId = null;
+let editTargetId = null;
+let statusChartInstance = null;
+let currentLogPage = 1;
+let manualDateAllowed = false;
 
 if (user) init();
+
+function splitOwn(value) {
+  return (value || '').split(',').map(v => v.trim()).filter(Boolean);
+}
 
 async function init() {
   try {
     allLists = await mirqatApi('settings', 'getSettingsLists');
-  } catch {
-    allLists = {};
+  } catch { allLists = {}; }
+
+  let visSettings = {};
+  try { visSettings = await mirqatApi('settings', 'getVisibilitySettings'); } catch { /* ignore */ }
+  manualDateAllowed = (visSettings.manual_date_entry || []).includes('نعم');
+
+  const isAdmin = user.role === 'admin';
+  fillSelect('f_branch', isAdmin ? allLists.branches : splitOwn(user.branch), isAdmin ? 'الفرع' : null);
+  fillSelect('f_stages', isAdmin ? allLists.stages : splitOwn(user.stages), isAdmin ? 'المرحلة' : null);
+  fillSelect('f_grades', isAdmin ? allLists.grades : splitOwn(user.grades), isAdmin ? 'الصف' : null);
+  fillSelect('f_sections', isAdmin ? allLists.sections : splitOwn(user.sections), isAdmin ? 'الشعبة' : null);
+  fillSelect('f_subject', isAdmin ? allLists.subject : splitOwn(user.subject), isAdmin ? 'المادة' : null);
+  fillSelect('f_term', allLists.terms, 'الترم');
+
+  if (isAdmin || manualDateAllowed) {
+    document.getElementById('f_week').readOnly = false;
+    document.getElementById('f_week').style.background = '';
+    document.getElementById('f_week').placeholder = 'الأسبوع (اكتبه يدويًا)';
+  } else {
+    loadCurrentWeek();
   }
 
-  fillSelect('f_branch', allLists.branches, 'الفرع');
-  fillSelect('f_stages', allLists.stages, 'المرحلة');
-  fillSelect('f_grades', allLists.grades, 'الصف');
-  fillSelect('f_sections', allLists.sections, 'الشعبة');
-  fillSelect('f_subject', allLists.subject, 'المادة');
-  fillSelect('f_term', allLists.terms, 'الترم');
+  setupTabs();
 
   document.getElementById('loadRosterBtn').addEventListener('click', loadRoster);
   document.getElementById('saveRosterBtn').addEventListener('click', saveRoster);
+
+  document.getElementById('filterLogBtn').addEventListener('click', () => loadLog(1));
+  document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+  document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+  document.getElementById('saveEditBtn').addEventListener('click', submitEdit);
   document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
 
-  loadRecords();
+  fillSelect('ef_status', allLists.attendance_statuses);
+
+  if (isAdmin) {
+    document.getElementById('log_employee').style.display = 'inline-block';
+    try {
+      const emps = await mirqatApi('employees', 'list', { filters: {}, page: 1, pageSize: 100 });
+      emps.rows.forEach(e => {
+        document.getElementById('log_employee').innerHTML += `<option value="${e.id}">${e.name_ar}</option>`;
+      });
+    } catch { /* ignore */ }
+  }
+
+  populateWeekOptions();
+  loadStats();
 }
 
 function fillSelect(id, options = [], placeholder = null) {
   const el = document.getElementById(id);
-  el.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '') +
-    (options || []).map(o => `<option value="${o}">${o}</option>`).join('');
+  el.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '') + (options || []).map(o => `<option value="${o}">${o}</option>`).join('');
 }
 
-function getFilters() {
-  return {
-    branch: document.getElementById('f_branch').value,
-    stages: document.getElementById('f_stages').value,
-    grades: document.getElementById('f_grades').value,
-    sections: document.getElementById('f_sections').value,
-    subject: document.getElementById('f_subject').value,
-    term: document.getElementById('f_term').value,
-    week: document.getElementById('f_week').value.trim(),
-    day: document.getElementById('f_day').value,
-    period: document.getElementById('f_period').value.trim()
-  };
-}
-
-async function loadRoster() {
-  const f = getFilters();
-  if (!f.branch || !f.grades) {
-    alert('اختر الفرع والصف على الأقل');
-    return;
+function populateWeekOptions() {
+  fillSelect('log_week', allLists.terms ? null : null); // noop placeholder
+  const weekSelect = document.getElementById('log_week');
+  weekSelect.innerHTML = '<option value="">اختر الأسبوع</option>';
+  // نبني قائمة أسابيع عامة (1-20) لأن أسماء الأسابيع نصية حرة في بياناتك
+  for (let i = 1; i <= 20; i++) {
+    weekSelect.innerHTML += `<option value="${i}">أسبوع ${i}</option>`;
   }
+  const daySelect = document.getElementById('log_day');
+  daySelect.innerHTML = '<option value="">اختر اليوم</option>' +
+    ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'].map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
+async function loadCurrentWeek() {
+  const hint = document.getElementById('calendarHint');
+  try {
+    const info = await mirqatApi('schedule', 'getCurrentTermInfo', {});
+    if (info) {
+      document.getElementById('f_week').value = info.week || '';
+      document.getElementById('f_term').value = info.term || '';
+      hint.style.display = 'block';
+      hint.textContent = `الأسبوع محدَّد تلقائيًا من التقويم الدراسي: ${info.term || ''} - ${info.week || ''}`;
+    } else {
+      hint.style.display = 'block';
+      hint.textContent = 'لا يوجد أسبوع دراسي مطابق لتاريخ اليوم في التقويم — راجع الأدمن لإضافته، أو فعّل التاريخ اليدوي من الإعدادات.';
+    }
+  } catch { /* ignore */ }
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      ['record', 'log', 'finished'].forEach(t => {
+        document.getElementById('panel-' + t).hidden = t !== btn.dataset.tab;
+      });
+      if (btn.dataset.tab === 'finished') loadFinished();
+    });
+  });
+}
+
+/* ---------------- إحصائيات ---------------- */
+async function loadStats() {
+  try {
+    const term = document.getElementById('f_term').value || undefined;
+    const week = document.getElementById('f_week').value || undefined;
+    const result = await mirqatApi('attendance', 'getAttendanceRecords', { filters: { term, week }, page: 1, pageSize: 200 });
+
+    const counts = {};
+    result.rows.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+
+    document.getElementById('statsCards').innerHTML = [
+      { label: 'سجلات هذا الأسبوع', value: result.total, tone: 'primary' },
+      { label: 'حاضر', value: counts['حاضر'] || 0, tone: 'info' },
+      { label: 'غائب', value: counts['غائب'] || 0, tone: 'warn' }
+    ].map(c => `<div class="card" data-tone="${c.tone}"><div class="card-value">${c.value}</div><div class="card-label">${c.label}</div></div>`).join('');
+
+    if (result.rows.length) {
+      document.getElementById('statusChartCard').style.display = 'block';
+      const ctx = document.getElementById('statusChart');
+      if (statusChartInstance) statusChartInstance.destroy();
+      statusChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(counts),
+          datasets: [{ data: Object.values(counts), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'], borderWidth: 0 }]
+        },
+        options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+  } catch { /* صامت — إحصائية ثانوية */ }
+}
+
+/* ---------------- تسجيل تحضير ---------------- */
+async function loadRoster() {
+  const f = getRecordFilters();
+  if (!f.branch || !f.grades) { alert('اختر الفرع والصف على الأقل'); return; }
 
   try {
-    currentRoster = await mirqatApi('students', 'list', {
+    currentRoster = await mirqatApi('attendance', 'getRoster', {
       filters: { branch: f.branch, stages: f.stages || undefined, grades: f.grades, sections: f.sections || undefined }
-    });
+    }, { cache: false });
   } catch (e) {
     alert('تعذّر تحميل الطلاب: ' + e.message);
     return;
@@ -68,7 +164,7 @@ async function loadRoster() {
   const body = document.getElementById('rosterTableBody');
 
   if (!currentRoster.length) {
-    body.innerHTML = '<tr><td colspan="2" class="empty-state">لا يوجد طلاب في هذه الشعبة</td></tr>';
+    body.innerHTML = '<tr><td colspan="2" class="empty-state">لا يوجد طلاب في هذه الشعبة ضمن نطاقك</td></tr>';
   } else {
     body.innerHTML = currentRoster.map(s => `
       <tr data-student-id="${s.id}">
@@ -86,8 +182,22 @@ async function loadRoster() {
   document.getElementById('rosterActions').style.display = currentRoster.length ? 'block' : 'none';
 }
 
+function getRecordFilters() {
+  return {
+    branch: document.getElementById('f_branch').value,
+    stages: document.getElementById('f_stages').value,
+    grades: document.getElementById('f_grades').value,
+    sections: document.getElementById('f_sections').value,
+    subject: document.getElementById('f_subject').value,
+    term: document.getElementById('f_term').value,
+    week: document.getElementById('f_week').value.trim(),
+    day: document.getElementById('f_day').value,
+    period: document.getElementById('f_period').value.trim()
+  };
+}
+
 async function saveRoster() {
-  const f = getFilters();
+  const f = getRecordFilters();
   const errorEl = document.getElementById('rosterError');
   errorEl.textContent = '';
 
@@ -112,10 +222,10 @@ async function saveRoster() {
   saveBtn.disabled = true;
 
   try {
-    await mirqatApi('attendance', 'saveAttendanceRoster', { records });
+    await mirqatApi('attendance', 'saveAttendanceRoster', { records }, { cache: false });
     document.getElementById('rosterWrap').style.display = 'none';
     document.getElementById('rosterActions').style.display = 'none';
-    loadRecords();
+    loadStats();
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -123,53 +233,122 @@ async function saveRoster() {
   }
 }
 
-let currentRecordsPage = 1;
+/* ---------------- سجل التحضير ---------------- */
+async function loadLog(page = currentLogPage) {
+  currentLogPage = page;
+  const week = document.getElementById('log_week').value;
+  const day = document.getElementById('log_day').value;
+  const body = document.getElementById('logTableBody');
 
-async function loadRecords(page = currentRecordsPage) {
-  currentRecordsPage = page;
-  const body = document.getElementById('recordsTableBody');
-  body.innerHTML = '<tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>';
+  if (!week || !day) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">اختر الأسبوع واليوم أولًا</td></tr>';
+    return;
+  }
+
+  body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
+
+  const filters = { week, day };
+  const empFilter = document.getElementById('log_employee').value;
+  if (empFilter) filters.employeeId = empFilter;
 
   try {
-    const result = await mirqatApi('attendance', 'getAttendanceRecords', { page, pageSize: 25 });
+    const result = await mirqatApi('attendance', 'getAttendanceRecords', { filters, page, pageSize: 25 });
     if (!result.rows.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty-state">لا يوجد سجلات بعد</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد سجلات لهذا الأسبوع/اليوم</td></tr>';
     } else {
       body.innerHTML = result.rows.map(r => `
+        <tr>
+          <td data-label="الطالب">${r.student_name || r.student_id}</td>
+          <td data-label="المادة">${r.subject || '—'}</td>
+          <td data-label="الحصة">${r.period || '—'}</td>
+          <td data-label="الحالة">${r.status || '—'}</td>
+          <td data-label="وقت التسجيل">${r.recorded_at ? new Date(r.recorded_at).toLocaleString('ar-SA') : '—'}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn btn-outline btn-sm" ${r.can_edit ? '' : 'disabled title="انتهت مهلة التعديل"'} onclick="openEditModal('${r.id}')">تعديل</button>
+              <button class="btn btn-danger btn-sm" ${r.can_delete ? '' : 'disabled title="انتهت مهلة الحذف"'} onclick="askDelete('${r.id}')">حذف</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+    mirqatRenderPagination('logPaginationBar', result, (p) => loadLog(p));
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="6" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
+  }
+}
+
+function openEditModal(id) {
+  editTargetId = id;
+  document.getElementById('editFormError').textContent = '';
+  document.getElementById('editModal').hidden = false;
+}
+function closeEditModal() { document.getElementById('editModal').hidden = true; editTargetId = null; }
+
+async function submitEdit() {
+  const errorEl = document.getElementById('editFormError');
+  errorEl.textContent = '';
+  const status = document.getElementById('ef_status').value;
+
+  try {
+    const result = await mirqatApi('attendance', 'updateAttendanceRecords', {
+      updates: [{ id: editTargetId, data: { status } }]
+    }, { cache: false });
+    if (result.failed && result.failed.length) {
+      errorEl.textContent = result.failed[0].reason || 'تعذّر التعديل';
+      return;
+    }
+    closeEditModal();
+    loadLog();
+  } catch (e) {
+    errorEl.textContent = e.message;
+  }
+}
+
+function askDelete(id) { deleteTargetId = id; document.getElementById('confirmModal').hidden = false; }
+function closeConfirmModal() { document.getElementById('confirmModal').hidden = true; deleteTargetId = null; }
+
+async function performDelete() {
+  if (!deleteTargetId) return;
+  try {
+    const result = await mirqatApi('attendance', 'deleteAttendanceRecords', { ids: [deleteTargetId] }, { cache: false });
+    closeConfirmModal();
+    if (result.note) alert(result.note);
+    loadLog();
+  } catch (e) {
+    alert('تعذّر حذف السجل: ' + e.message);
+  }
+}
+
+/* ---------------- سجلات الأسبوع المنتهي ---------------- */
+async function loadFinished() {
+  const label = document.getElementById('finishedWeekLabel');
+  const body = document.getElementById('finishedTableBody');
+  body.innerHTML = '<tr><td colspan="5" class="loading-row">جارٍ التحميل...</td></tr>';
+
+  try {
+    const result = await mirqatApi('attendance', 'getFinishedWeekRecords', {});
+    if (!result.week) {
+      label.textContent = 'لا يوجد أسبوع دراسي منتهٍ في التقويم بعد.';
+      body.innerHTML = '<tr><td colspan="5" class="empty-state">لا يوجد بيانات</td></tr>';
+      return;
+    }
+    label.textContent = `آخر أسبوع منتهٍ: ${result.week.term} — ${result.week.week} (انتهى ${result.week.week_end_date})`;
+
+    if (!result.records.length) {
+      body.innerHTML = '<tr><td colspan="5" class="empty-state">لا يوجد سجلات لهذا الأسبوع</td></tr>';
+      return;
+    }
+    body.innerHTML = result.records.map(r => `
       <tr>
         <td data-label="الطالب">${r.student_name || r.student_id}</td>
         <td data-label="المادة">${r.subject || '—'}</td>
         <td data-label="اليوم">${r.day || '—'}</td>
         <td data-label="الحصة">${r.period || '—'}</td>
         <td data-label="الحالة">${r.status || '—'}</td>
-        <td data-label="وقت التسجيل">${r.recorded_at ? new Date(r.recorded_at).toLocaleString('ar-SA') : '—'}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="askDelete('${r.id}')">حذف</button></td>
       </tr>
     `).join('');
-    }
-    mirqatRenderPagination('recordsPaginationBar', result, (p) => loadRecords(p));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="7" class="empty-state">تعذّر تحميل السجلات: ${e.message}</td></tr>`;
-  }
-}
-
-function askDelete(id) {
-  deleteTargetId = id;
-  document.getElementById('confirmModal').hidden = false;
-}
-
-function closeConfirmModal() {
-  document.getElementById('confirmModal').hidden = true;
-  deleteTargetId = null;
-}
-
-async function performDelete() {
-  if (!deleteTargetId) return;
-  try {
-    await mirqatApi('attendance', 'deleteAttendanceRecords', { ids: [deleteTargetId] });
-    closeConfirmModal();
-    loadRecords();
-  } catch (e) {
-    alert('تعذّر حذف السجل: ' + e.message);
+    body.innerHTML = `<tr><td colspan="5" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
   }
 }

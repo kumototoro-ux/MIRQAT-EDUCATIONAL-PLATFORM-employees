@@ -4,17 +4,19 @@ import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
+import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
 
 /**
- * أي إضافة/تعديل/حذف هنا يُحدّث grade_aggregation تلقائيًا عبر trigger
- * في قاعدة البيانات (recalc_grade_aggregation_) — لا حاجة لأي كود إضافي هنا.
+ * كل شيء هنا مبني حول "المادة" — المعلم لا يرى ولا يرصد إلا لمواده المسندة
+ * (user.subject مفكوكة بفاصلة). الواجهة تبني تبويبات مواد من هذا الحقل.
  *
  * Actions:
- *  - getRoster        { filters }              → طلاب شعبة معيّنة لرصد درجاتهم (مقيّد بنطاق المعلم)
- *  - saveRoster        { records: [...] }       → رصد جماعي لتكليف/تقييم واحد لكل الشعبة
- *  - getGradingRecords { filters? }             → سجلات المعلم نفسه (أدمن يرى الكل مع فلاتر)
- *  - updateRosterRecords{ updates: [{id,data}] } → تعديل جماعي (مقيّد بصاحب السجل)
- *  - deleteRosterRecords{ ids: [...] }          → حذف جماعي (نفس التقييد)
+ *  - getRoster           { filters }                     → طلاب شعبة لرصد درجاتهم
+ *  - saveRoster           { records: [...] }              → رصد جماعي (يدوي أو مشاركة)
+ *  - getGradingRecords    { filters?, page?, pageSize? }  → سجل الرصد (مُرقَّم)
+ *  - getFinishedWeekRecords{ subject, term? }             → سجلات آخر أسبوع دراسي منتهٍ لمادة
+ *  - updateRosterRecords  { updates: [{id,data}] }        → مقيّد بنافذة 6 أيام تعديل
+ *  - deleteRosterRecords  { ids: [...] }                  → مقيّد بنافذة 6 ساعات حذف
  */
 export default async function handler(req, res) {
   if (req.method !== 'POST') return fail(res, 'Method not allowed', 405);
@@ -32,6 +34,8 @@ export default async function handler(req, res) {
         return await saveRoster(req, res, user, body);
       case 'getGradingRecords':
         return await getGradingRecords(req, res, user, body);
+      case 'getFinishedWeekRecords':
+        return await getFinishedWeekRecords(req, res, user, body);
       case 'updateRosterRecords':
         return await updateRosterRecords(req, res, user, body);
       case 'deleteRosterRecords':
@@ -50,8 +54,20 @@ function scopeToOwner(query, user, col = 'employee_id') {
   return query.eq(col, user.employeeId);
 }
 
+/** يتحقق أن المادة المطلوبة ضمن مواد المعلم المسندة (الأدمن معفى) */
+function requireSubjectAccess(user, subject) {
+  if (user.role === 'admin') return true;
+  if (!subject || !user.subject) return false;
+  const mySubjects = user.subject.split(',').map(s => s.trim());
+  return mySubjects.includes(subject.trim());
+}
+
 /* ---------------- طلاب الشعبة لرصد درجاتهم ---------------- */
 async function getRoster(req, res, user, { filters = {} } = {}) {
+  if (filters.subject && !requireSubjectAccess(user, filters.subject)) {
+    return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
+  }
+
   let query = supabase.from('students').select('id, name_ar, branch, stages, grades, sections').is('deleted_at', null);
   query = applyEmployeeScope(query, user);
 
@@ -67,10 +83,15 @@ async function getRoster(req, res, user, { filters = {} } = {}) {
   return ok(res, data);
 }
 
-/* ---------------- رصد جماعي ---------------- */
+/* ---------------- رصد جماعي (يدوي أو مشاركة) ---------------- */
 async function saveRoster(req, res, user, { records } = {}) {
   if (!Array.isArray(records) || records.length === 0) {
     return fail(res, 'لا يوجد درجات لحفظها', 400);
+  }
+
+  const subject = records[0]?.subject;
+  if (!requireSubjectAccess(user, subject)) {
+    return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
   }
 
   const rows = records.map(r => ({
@@ -82,6 +103,7 @@ async function saveRoster(req, res, user, { records } = {}) {
     sections: r.sections || null,
     subject: r.subject || null,
     term: r.term || null,
+    week: r.week || null,
     eval_type: r.eval_type || null,
     task_name: r.task_name || null,
     earned_score: r.earned_score,
@@ -98,14 +120,20 @@ async function saveRoster(req, res, user, { records } = {}) {
   return ok(res, data, 201);
 }
 
-/* ---------------- سجلات المعلم نفسه (أدمن يرى الكل) — مُرقَّم ---------------- */
+/* ---------------- سجل الرصد (مُرقَّم، بفلاتر ترم/أسبوع/تاريخ) ---------------- */
 async function getGradingRecords(req, res, user, { filters = {}, page, pageSize } = {}) {
+  if (filters.subject && !requireSubjectAccess(user, filters.subject)) {
+    return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
+  }
+
   let query = supabase.from('daily_follow_up').select('*', { count: 'exact' });
   query = scopeToOwner(query, user);
+  if (user.role === 'admin' && filters.employeeId) query = query.eq('employee_id', filters.employeeId);
 
-  if (filters.branch) query = query.eq('branch', filters.branch);
   if (filters.subject) query = query.eq('subject', filters.subject);
   if (filters.term) query = query.eq('term', filters.term);
+  if (filters.week) query = query.eq('week', filters.week);
+  if (filters.recordedDate) query = query.eq('recorded_date', filters.recordedDate);
   if (filters.evalType) query = query.eq('eval_type', filters.evalType);
   if (filters.studentId) query = query.eq('student_id', filters.studentId);
 
@@ -114,48 +142,106 @@ async function getGradingRecords(req, res, user, { filters = {}, page, pageSize 
   const paged = applyPagination(query, { page, pageSize });
   const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب سجلات الرصد', 500);
-  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
+
+  const now = Date.now();
+  const editableRows = data.map(r => ({
+    ...r,
+    can_edit: user.role === 'admin' || (now - new Date(r.created_at).getTime()) < EDIT_WINDOW_HOURS.grading * 3600 * 1000,
+    can_delete: user.role === 'admin' || (now - new Date(r.created_at).getTime()) < DELETE_WINDOW_HOURS.grading * 3600 * 1000
+  }));
+
+  return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
 }
 
-/* ---------------- تعديل جماعي ---------------- */
+/* ---------------- سجلات آخر أسبوع دراسي منتهٍ لمادة معيّنة ---------------- */
+async function getFinishedWeekRecords(req, res, user, { subject, term, employeeId } = {}) {
+  if (!subject) return fail(res, 'المادة مطلوبة', 400);
+  if (!requireSubjectAccess(user, subject)) return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
+
+  const today = new Date().toISOString().slice(0, 10);
+  let calQuery = supabase
+    .from('school_calendar')
+    .select('term, week, week_end_date')
+    .lt('week_end_date', today)
+    .order('week_end_date', { ascending: false })
+    .limit(1);
+  if (term) calQuery = calQuery.eq('term', term);
+
+  const { data: lastWeek, error: calError } = await calQuery.maybeSingle();
+  if (calError) return fail(res, 'تعذّر تحديد آخر أسبوع منتهٍ', 500);
+  if (!lastWeek) return ok(res, { week: null, records: [] });
+
+  let query = supabase.from('daily_follow_up').select('*')
+    .eq('subject', subject)
+    .eq('term', lastWeek.term)
+    .eq('week', lastWeek.week);
+  query = scopeToOwner(query, user);
+  if (user.role === 'admin' && employeeId) query = query.eq('employee_id', employeeId);
+
+  const { data, error } = await query.order('recorded_date', { ascending: false });
+  if (error) return fail(res, 'تعذّر جلب سجلات الأسبوع المنتهي', 500);
+
+  return ok(res, { week: lastWeek, records: data });
+}
+
+/* ---------------- تعديل جماعي — مقيّد بنافذة 6 أيام لغير الأدمن ---------------- */
 async function updateRosterRecords(req, res, user, { updates } = {}) {
   if (!Array.isArray(updates) || updates.length === 0) {
     return fail(res, 'لا يوجد تعديلات لتطبيقها', 400);
   }
 
+  const cutoff = windowCutoffIso(EDIT_WINDOW_HOURS.grading);
+
   const results = await Promise.all(updates.map(async ({ id, data }) => {
-    if (!id || !data) return { id, ok: false };
+    if (!id || !data) return { id, ok: false, reason: 'بيانات ناقصة' };
 
     let query = supabase.from('daily_follow_up')
       .update({ ...data, is_edited: true, edited_date: new Date().toISOString() })
       .eq('id', id);
     query = scopeToOwner(query, user);
+    if (user.role !== 'admin') query = query.gte('created_at', cutoff);
 
-    const { error } = await query;
-    return { id, ok: !error };
+    const { data: updated, error } = await query.select();
+    if (error) return { id, ok: false, reason: 'خطأ في الخادم' };
+    if (!updated || updated.length === 0) {
+      return { id, ok: false, reason: 'انتهت مهلة التعديل (6 أيام) — راجع الأدمن' };
+    }
+    return { id, ok: true };
   }));
 
   const failed = results.filter(r => !r.ok);
   await logAudit(user, 'updateRosterRecords', `تعديل ${results.length - failed.length} درجة`);
 
   if (failed.length > 0) {
-    return ok(res, { updated: results.length - failed.length, failed: failed.map(f => f.id) }, 207);
+    return ok(res, { updated: results.length - failed.length, failed }, 207);
   }
   return ok(res, { updated: results.length });
 }
 
-/* ---------------- حذف جماعي ---------------- */
+/* ---------------- حذف جماعي — مقيّد بنافذة 6 ساعات لغير الأدمن ---------------- */
 async function deleteRosterRecords(req, res, user, { ids } = {}) {
   if (!Array.isArray(ids) || ids.length === 0) {
     return fail(res, 'لا يوجد سجلات للحذف', 400);
   }
 
+  const cutoff = windowCutoffIso(DELETE_WINDOW_HOURS.grading);
+
   let query = supabase.from('daily_follow_up').delete().in('id', ids);
   query = scopeToOwner(query, user);
+  if (user.role !== 'admin') query = query.gte('created_at', cutoff);
 
-  const { error } = await query;
+  const { data: deleted, error } = await query.select('id');
   if (error) return fail(res, 'تعذّر حذف السجلات', 500);
 
-  await logAudit(user, 'deleteRosterRecords', `حذف ${ids.length} سجل درجات`);
-  return ok(res, { deleted: ids.length });
+  const deletedCount = deleted?.length || 0;
+  await logAudit(user, 'deleteRosterRecords', `حذف ${deletedCount} سجل درجات`);
+
+  if (deletedCount < ids.length) {
+    return ok(res, {
+      deleted: deletedCount,
+      failed: ids.length - deletedCount,
+      note: 'بعض السجلات تجاوزت مهلة الحذف (6 ساعات) — راجع الأدمن لحذفها'
+    }, 207);
+  }
+  return ok(res, { deleted: deletedCount });
 }

@@ -119,8 +119,8 @@ async function loadTasks(page = currentTasksPage) {
         <td data-label="الرصد">${t.is_graded ? 'تم' : 'لم يُرصد'}</td>
         <td>
           <div class="row-actions">
-            <button class="btn btn-outline btn-sm" onclick="editTask(${t.id})">تعديل</button>
-            <button class="btn btn-danger btn-sm" onclick="askDelete('task', ${t.id}, '${t.task_name.replace(/'/g, "\\'")}')">حذف</button>
+            <button class="btn btn-outline btn-sm" ${t.can_edit ? '' : 'disabled title="انتهت مهلة التعديل (6 أيام)"'} onclick="editTask(${t.id})">تعديل</button>
+            <button class="btn btn-danger btn-sm" ${t.can_delete ? '' : 'disabled title="انتهت مهلة الحذف (6 ساعات)"'} onclick="askDelete('task', ${t.id}, '${t.task_name.replace(/'/g, "\\'")}')">حذف</button>
           </div>
         </td>
       </tr>
@@ -239,8 +239,8 @@ async function loadEnrichments(page = currentEnrichPage) {
         <td data-label="الرابط"><a href="${en.link}" target="_blank" rel="noopener">فتح</a></td>
         <td>
           <div class="row-actions">
-            <button class="btn btn-outline btn-sm" onclick="editEnrichment(${en.id})">تعديل</button>
-            <button class="btn btn-danger btn-sm" onclick="askDelete('enrichment', ${en.id}, '${en.title.replace(/'/g, "\\'")}')">حذف</button>
+            <button class="btn btn-outline btn-sm" ${en.can_edit ? '' : 'disabled title="انتهت مهلة التعديل (6 أيام)"'} onclick="editEnrichment(${en.id})">تعديل</button>
+            <button class="btn btn-danger btn-sm" ${en.can_delete ? '' : 'disabled title="انتهت مهلة الحذف (6 ساعات)"'} onclick="askDelete('enrichment', ${en.id}, '${en.title.replace(/'/g, "\\'")}')">حذف</button>
           </div>
         </td>
       </tr>

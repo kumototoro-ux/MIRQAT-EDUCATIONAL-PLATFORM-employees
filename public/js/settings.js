@@ -91,7 +91,7 @@ async function addListItem() {
   if (!value) return;
 
   try {
-    await mirqatApi('settings', 'addSettingsItem', { key, value });
+    await mirqatApi('settings', 'addSettingsItem', { key, value }, { cache: false });
     allLists[key] = [...(allLists[key] || []), value];
     input.value = '';
     renderListItems();
@@ -102,7 +102,7 @@ async function addListItem() {
 
 async function removeListItem(key, value) {
   try {
-    await mirqatApi('settings', 'removeSettingsItem', { key, value });
+    await mirqatApi('settings', 'removeSettingsItem', { key, value }, { cache: false });
     allLists[key] = (allLists[key] || []).filter(v => v !== value);
     renderListItems();
   } catch (e) {
@@ -127,7 +127,7 @@ async function saveSchoolInfo(e) {
     await mirqatApi('settings', 'setSchoolInfo', {
       name: document.getElementById('sf_name').value.trim(),
       logoUrl: document.getElementById('sf_logo').value.trim() || null
-    });
+    }, { cache: false });
   } catch (e) {
     errorEl.textContent = e.message;
   }
@@ -162,7 +162,7 @@ async function addMatrixRow() {
   };
   if (!data.subject) { alert('اختر المادة'); return; }
   try {
-    await mirqatApi('settings', 'saveSubjectMatrixRow', { data });
+    await mirqatApi('settings', 'saveSubjectMatrixRow', { data }, { cache: false });
     loadMatrix();
   } catch (e) {
     alert('تعذّر الإضافة: ' + e.message);
@@ -171,7 +171,7 @@ async function addMatrixRow() {
 
 async function deleteMatrixRow(id) {
   try {
-    await mirqatApi('settings', 'deleteSubjectMatrixRow', { id });
+    await mirqatApi('settings', 'deleteSubjectMatrixRow', { id }, { cache: false });
     loadMatrix();
   } catch (e) {
     alert('تعذّر الحذف: ' + e.message);
@@ -204,7 +204,7 @@ async function addDistRow() {
   };
   if (!data.subject || !data.eval_type || !data.percentage) { alert('عبّي كل الحقول'); return; }
   try {
-    await mirqatApi('settings', 'saveGradeDistRow', { data });
+    await mirqatApi('settings', 'saveGradeDistRow', { data }, { cache: false });
     document.getElementById('gd_percentage').value = '';
     loadDistribution();
   } catch (e) {
@@ -214,7 +214,7 @@ async function addDistRow() {
 
 async function deleteDistRow(id) {
   try {
-    await mirqatApi('settings', 'deleteGradeDistRow', { id });
+    await mirqatApi('settings', 'deleteGradeDistRow', { id }, { cache: false });
     loadDistribution();
   } catch (e) {
     alert('تعذّر الحذف: ' + e.message);
@@ -227,6 +227,7 @@ async function loadVisibility() {
     const settings = await mirqatApi('settings', 'getVisibilitySettings');
     checkValues('vis_results', settings.results_control || []);
     checkValues('vis_grades', settings.grades_control || []);
+    document.getElementById('vis_manual_date').checked = (settings.manual_date_entry || []).includes('نعم');
   } catch { /* silent */ }
 }
 
@@ -244,8 +245,9 @@ async function saveVisibility() {
   const errorEl = document.getElementById('visibilityError');
   errorEl.textContent = '';
   try {
-    await mirqatApi('settings', 'setVisibilitySettings', { key: 'results_control', values: getCheckedValues('vis_results') });
-    await mirqatApi('settings', 'setVisibilitySettings', { key: 'grades_control', values: getCheckedValues('vis_grades') });
+    await mirqatApi('settings', 'setVisibilitySettings', { key: 'results_control', values: getCheckedValues('vis_results') }, { cache: false });
+    await mirqatApi('settings', 'setVisibilitySettings', { key: 'grades_control', values: getCheckedValues('vis_grades') }, { cache: false });
+    await mirqatApi('settings', 'setVisibilitySettings', { key: 'manual_date_entry', values: [document.getElementById('vis_manual_date').checked ? 'نعم' : 'لا'] }, { cache: false });
   } catch (e) {
     errorEl.textContent = e.message;
   }

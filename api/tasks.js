@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
+import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
 
 /**
  * Actions — المهام والتكاليف والاختبارات (task_assignments):
@@ -62,6 +63,16 @@ function scopeToOwner(query, user, col = 'employee_id') {
   return query.eq(col, user.employeeId);
 }
 
+/** أسبوع التقويم الدراسي الحالي (اليوم بين بداية ونهاية الأسبوع) */
+async function getCurrentWeek(term) {
+  const today = new Date().toISOString().slice(0, 10);
+  let q = supabase.from('school_calendar').select('term, week, week_start_date, week_end_date')
+    .lte('week_start_date', today).gte('week_end_date', today).limit(1);
+  if (term) q = q.eq('term', term);
+  const { data } = await q.maybeSingle();
+  return data;
+}
+
 /* ================= المهام والتكاليف والاختبارات ================= */
 
 async function getTasks(req, res, user, { filters = {}, page, pageSize } = {}) {
@@ -75,12 +86,28 @@ async function getTasks(req, res, user, { filters = {}, page, pageSize } = {}) {
   if (filters.subject) query = query.eq('subject', filters.subject);
   if (filters.term) query = query.eq('term', filters.term);
 
+  // افتراضيًا: لا يظهر إلا تكاليف الأسبوع الدراسي الحالي فقط، ما لم يُطلب نطاق تاريخ صريح
+  if (!filters.showAll && !filters.dateFrom) {
+    const currentWeek = await getCurrentWeek(filters.term);
+    if (currentWeek) {
+      query = query.gte('issue_date', currentWeek.week_start_date).lte('issue_date', currentWeek.week_end_date);
+    }
+  }
+
   query = query.order('due_date', { ascending: true });
 
   const paged = applyPagination(query, { page, pageSize });
   const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب التكاليف', 500);
-  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
+
+  const now = Date.now();
+  const editableRows = data.map(t => ({
+    ...t,
+    can_edit: user.role === 'admin' || (now - new Date(t.created_at).getTime()) < EDIT_WINDOW_HOURS.task * 3600 * 1000,
+    can_delete: user.role === 'admin' || (now - new Date(t.created_at).getTime()) < DELETE_WINDOW_HOURS.task * 3600 * 1000
+  }));
+
+  return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
 }
 
 async function saveTask(req, res, user, { id, data } = {}) {
@@ -89,8 +116,10 @@ async function saveTask(req, res, user, { id, data } = {}) {
   if (id) {
     let query = supabase.from('task_assignments').update({ ...data, is_edited: true }).eq('id', id);
     query = scopeToOwner(query, user);
-    const { error } = await query;
+    if (user.role !== 'admin') query = query.gte('created_at', windowCutoffIso(EDIT_WINDOW_HOURS.task));
+    const { data: updated, error } = await query.select();
     if (error) return fail(res, 'تعذّر تعديل التكليف', 500);
+    if (!updated || updated.length === 0) return fail(res, 'انتهت مهلة التعديل (6 أيام) — راجع الأدمن', 403);
     await logAudit(user, 'saveTask', `تعديل تكليف: ${id}`);
     return ok(res, { id });
   }
@@ -153,8 +182,10 @@ async function deleteTask(req, res, user, { id } = {}) {
 
   let query = supabase.from('task_assignments').delete().eq('id', id);
   query = scopeToOwner(query, user);
-  const { error } = await query;
+  if (user.role !== 'admin') query = query.gte('created_at', windowCutoffIso(DELETE_WINDOW_HOURS.task));
+  const { data: deleted, error } = await query.select('id');
   if (error) return fail(res, 'تعذّر حذف التكليف', 500);
+  if (!deleted || deleted.length === 0) return fail(res, 'انتهت مهلة الحذف (6 ساعات) — راجع الأدمن', 403);
 
   await logAudit(user, 'deleteTask', `حذف تكليف: ${id}`);
   return ok(res, { id });
@@ -166,6 +197,13 @@ async function getPendingTasks(req, res, user, { filters = {} } = {}) {
 
   if (filters.branch) query = query.eq('branch', filters.branch);
   if (filters.subject) query = query.eq('subject', filters.subject);
+
+  if (!filters.showAll) {
+    const currentWeek = await getCurrentWeek(filters.term);
+    if (currentWeek) {
+      query = query.gte('issue_date', currentWeek.week_start_date).lte('issue_date', currentWeek.week_end_date);
+    }
+  }
 
   query = query.order('due_date', { ascending: true });
 
@@ -187,12 +225,27 @@ async function getEnrichments(req, res, user, { filters = {}, page, pageSize } =
   if (filters.subject) query = query.eq('subject', filters.subject);
   if (filters.contentType) query = query.eq('content_type', filters.contentType);
 
+  if (!filters.showAll && !filters.dateFrom) {
+    const currentWeek = await getCurrentWeek(filters.term);
+    if (currentWeek) {
+      query = query.gte('publish_date', currentWeek.week_start_date).lte('publish_date', currentWeek.week_end_date);
+    }
+  }
+
   query = query.order('publish_date', { ascending: false });
 
   const paged = applyPagination(query, { page, pageSize });
   const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب الإثراءات', 500);
-  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
+
+  const now = Date.now();
+  const editableRows = data.map(en => ({
+    ...en,
+    can_edit: user.role === 'admin' || (now - new Date(en.created_at).getTime()) < EDIT_WINDOW_HOURS.task * 3600 * 1000,
+    can_delete: user.role === 'admin' || (now - new Date(en.created_at).getTime()) < DELETE_WINDOW_HOURS.task * 3600 * 1000
+  }));
+
+  return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
 }
 
 async function saveEnrichment(req, res, user, { id, data } = {}) {
@@ -201,8 +254,10 @@ async function saveEnrichment(req, res, user, { id, data } = {}) {
   if (id) {
     let query = supabase.from('enrichment_content').update(data).eq('id', id);
     query = scopeToOwner(query, user);
-    const { error } = await query;
+    if (user.role !== 'admin') query = query.gte('created_at', windowCutoffIso(EDIT_WINDOW_HOURS.task));
+    const { data: updated, error } = await query.select();
     if (error) return fail(res, 'تعذّر تعديل الإثراء', 500);
+    if (!updated || updated.length === 0) return fail(res, 'انتهت مهلة التعديل (6 أيام) — راجع الأدمن', 403);
     await logAudit(user, 'saveEnrichment', `تعديل إثراء: ${id}`);
     return ok(res, { id });
   }
@@ -229,8 +284,10 @@ async function deleteEnrichment(req, res, user, { id } = {}) {
 
   let query = supabase.from('enrichment_content').delete().eq('id', id);
   query = scopeToOwner(query, user);
-  const { error } = await query;
+  if (user.role !== 'admin') query = query.gte('created_at', windowCutoffIso(DELETE_WINDOW_HOURS.task));
+  const { data: deleted, error } = await query.select('id');
   if (error) return fail(res, 'تعذّر حذف الإثراء', 500);
+  if (!deleted || deleted.length === 0) return fail(res, 'انتهت مهلة الحذف (6 ساعات) — راجع الأدمن', 403);
 
   await logAudit(user, 'deleteEnrichment', `حذف إثراء: ${id}`);
   return ok(res, { id });
