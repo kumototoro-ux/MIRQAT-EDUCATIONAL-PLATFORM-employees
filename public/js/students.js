@@ -147,7 +147,10 @@ function renderRecentTable(students) {
   }
   body.innerHTML = students.map(s => `
     <tr class="clickable" onclick="openStudentDrawerFromRecent('${s.id}')">
-      <td>${s.id}</td><td>${s.name_ar}</td><td>${s.branch || '—'}</td><td>${s.grades || '—'}</td>
+      <td data-label="المعرّف">${s.id}</td>
+      <td data-label="الاسم">${s.name_ar}</td>
+      <td data-label="الفرع">${s.branch || '—'}</td>
+      <td data-label="الصف">${s.grades || '—'}</td>
     </tr>
   `).join('');
   window.__recentCache = students;
@@ -184,13 +187,13 @@ function renderTable(students) {
   }
   body.innerHTML = students.map(s => `
     <tr class="clickable" onclick="openStudentDrawer('${s.id}')">
-      <td>${s.id}</td>
-      <td>${s.name_ar}</td>
-      <td>${s.branch || '—'}</td>
-      <td>${s.stages || '—'}</td>
-      <td>${s.grades || '—'}</td>
-      <td>${s.sections || '—'}</td>
-      <td>${s.fees_status || '—'}</td>
+      <td data-label="المعرّف">${s.id}</td>
+      <td data-label="الاسم">${s.name_ar}</td>
+      <td data-label="الفرع">${s.branch || '—'}</td>
+      <td data-label="المرحلة">${s.stages || '—'}</td>
+      <td data-label="الصف">${s.grades || '—'}</td>
+      <td data-label="الشعبة">${s.sections || '—'}</td>
+      <td data-label="حالة الرسوم">${s.fees_status || '—'}</td>
     </tr>
   `).join('');
 }
