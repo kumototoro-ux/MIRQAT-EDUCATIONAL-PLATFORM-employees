@@ -68,9 +68,10 @@ function drawStatusDonut(positive, negative) {
       labels: ['إيجابي', 'سلبي'],
       datasets: [{ data: [positive, negative], backgroundColor: ['#2F6B52', '#B03A2E'], borderWidth: 0 }]
     },
+    plugins: [mirqatDonutCenterPlugin(String(positive + negative))],
     options: {
       responsive: true,
-      cutout: '68%',
+      cutout: '72%',
       plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } }
     }
   });

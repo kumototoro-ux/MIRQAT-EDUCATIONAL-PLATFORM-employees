@@ -173,6 +173,25 @@ function mirqatDrawerField(label, value) {
   return `<div class="drawer-field"><span class="label">${label}</span><span class="value">${value ?? '—'}</span></div>`;
 }
 
+/** بلَجن Chart.js يكتب رقمًا كبيرًا بمنتصف أي رسم دونات (دائري مفرّغ) */
+function mirqatDonutCenterPlugin(text) {
+  return {
+    id: 'mirqatCenterText',
+    afterDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      const { width, height, left, top } = chartArea;
+      ctx.save();
+      ctx.font = '800 26px "IBM Plex Sans Arabic", sans-serif';
+      ctx.fillStyle = '#1E2A24';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, left + width / 2, top + height / 2);
+      ctx.restore();
+    }
+  };
+}
+
 /**
  * يجيب أسماء الأسابيع الفعلية من التقويم الدراسي (مثل "الأول"، "الثاني"...)
  * بدل استخدام أرقام وهمية — لأن كل الجداول تخزّن الأسبوع كنص من التقويم.

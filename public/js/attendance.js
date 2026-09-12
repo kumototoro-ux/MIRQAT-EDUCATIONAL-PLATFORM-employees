@@ -31,9 +31,7 @@ async function init() {
   fillSelect('f_term', allLists.terms, 'الترم');
 
   if (isAdmin || manualDateAllowed) {
-    document.getElementById('f_week').readOnly = false;
-    document.getElementById('f_week').style.background = '';
-    document.getElementById('f_week').placeholder = 'الأسبوع (اكتبه يدويًا)';
+    await populateManualWeekSelect();
   } else {
     await loadCurrentWeek();
   }
@@ -90,18 +88,38 @@ function populateWeekOptions() {
 
 async function loadCurrentWeek() {
   const hint = document.getElementById('calendarHint');
+  const weekSelect = document.getElementById('f_week');
   try {
     const info = await mirqatApi('schedule', 'getCurrentTermInfo', {});
     if (info) {
-      document.getElementById('f_week').value = info.week || '';
+      weekSelect.innerHTML = `<option value="${info.week}">${info.week}</option>`;
       document.getElementById('f_term').value = info.term || '';
       hint.style.display = 'block';
       hint.textContent = `الأسبوع محدَّد تلقائيًا من التقويم الدراسي: ${info.term || ''} - ${info.week || ''}`;
     } else {
+      weekSelect.innerHTML = '<option value="">لا يوجد أسبوع</option>';
       hint.style.display = 'block';
       hint.textContent = 'لا يوجد أسبوع دراسي مطابق لتاريخ اليوم في التقويم — راجع الأدمن لإضافته، أو فعّل التاريخ اليدوي من الإعدادات.';
     }
   } catch { /* ignore */ }
+}
+
+/** للأدمن/عند تفعيل التاريخ اليدوي: قائمة أسابيع حقيقية من التقويم (لا كتابة حرة أبدًا) */
+async function populateManualWeekSelect() {
+  const weekSelect = document.getElementById('f_week');
+  weekSelect.disabled = false;
+
+  const refresh = async () => {
+    const term = document.getElementById('f_term').value;
+    weekSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
+    const weeks = term ? await mirqatGetWeeksForTerm(term) : [];
+    weekSelect.innerHTML = weeks.length
+      ? weeks.map(w => `<option value="${w}">${w}</option>`).join('')
+      : '<option value="">لا يوجد أسابيع لهذا الترم في التقويم</option>';
+  };
+
+  document.getElementById('f_term').addEventListener('change', refresh);
+  await refresh();
 }
 
 function setupTabs() {
@@ -140,7 +158,8 @@ async function loadStats() {
           labels: stats.byStatus.map(s => s.label),
           datasets: [{ data: stats.byStatus.map(s => s.count), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'], borderWidth: 0 }]
         },
-        options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+        plugins: [mirqatDonutCenterPlugin(String(stats.total))],
+        options: { responsive: true, cutout: '72%', plugins: { legend: { position: 'bottom' } } }
       });
     }
   } catch (e) {
@@ -164,6 +183,14 @@ async function loadRoster() {
 
   const statuses = allLists.attendance_statuses || ['حاضر', 'غائب', 'متأخر', 'مستأذن'];
   const body = document.getElementById('rosterTableBody');
+  const quickBar = document.getElementById('quickMarkBar');
+
+  quickBar.innerHTML = `
+    <span class="qm-label">تحديد الكل:</span>
+    <div class="status-chip-group">
+      ${statuses.map(st => `<button type="button" class="status-chip" data-status="${st}" onclick="markAll('${st}')">${st}</button>`).join('')}
+    </div>
+  `;
 
   if (!currentRoster.length) {
     body.innerHTML = '<tr><td colspan="2" class="empty-state">لا يوجد طلاب في هذه الشعبة ضمن نطاقك</td></tr>';
@@ -172,9 +199,9 @@ async function loadRoster() {
       <tr data-student-id="${s.id}">
         <td data-label="الطالب">${s.name_ar}</td>
         <td data-label="الحالة">
-          <select class="status-select">
-            ${statuses.map(st => `<option value="${st}" ${st === 'حاضر' ? 'selected' : ''}>${st}</option>`).join('')}
-          </select>
+          <div class="status-chip-group">
+            ${statuses.map(st => `<button type="button" class="status-chip${st === 'حاضر' ? ' selected' : ''}" data-status="${st}" onclick="setStudentStatus(this)">${st}</button>`).join('')}
+          </div>
         </td>
       </tr>
     `).join('');
@@ -182,6 +209,22 @@ async function loadRoster() {
 
   document.getElementById('rosterWrap').style.display = 'block';
   document.getElementById('rosterActions').style.display = currentRoster.length ? 'block' : 'none';
+}
+
+/** يحدد نفس الحالة لكل الطلاب دفعة وحدة (تحضير سريع) */
+function markAll(status) {
+  document.querySelectorAll('#rosterTableBody tr[data-student-id]').forEach(row => {
+    row.querySelectorAll('.status-chip').forEach(chip => {
+      chip.classList.toggle('selected', chip.dataset.status === status);
+    });
+  });
+}
+
+/** يحدد حالة طالب واحد عند الضغط على شريحته */
+function setStudentStatus(btn) {
+  const row = btn.closest('tr');
+  row.querySelectorAll('.status-chip').forEach(chip => chip.classList.remove('selected'));
+  btn.classList.add('selected');
 }
 
 function getRecordFilters() {
@@ -216,7 +259,7 @@ async function saveRoster() {
       day: f.day || null,
       period: f.period || null,
       subject: f.subject || null,
-      status: row.querySelector('.status-select').value
+      status: row.querySelector('.status-chip.selected')?.dataset.status || 'حاضر'
     };
   });
 

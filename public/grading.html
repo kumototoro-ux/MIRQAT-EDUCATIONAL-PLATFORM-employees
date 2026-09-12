@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | رصد الدرجات</title>
-<link rel="stylesheet" href="/styles.css?v=5">
-<link rel="stylesheet" href="/css/shell.css?v=3">
-<link rel="stylesheet" href="/css/components.css?v=6">
+<link rel="stylesheet" href="/styles.css?v=6">
+<link rel="stylesheet" href="/css/shell.css?v=4">
+<link rel="stylesheet" href="/css/components.css?v=7">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
@@ -43,8 +43,7 @@
         <!-- أدمن فقط: اختيار الفرع ثم المعلم -->
         <div class="toolbar" id="adminPicker" style="display:none;">
           <select id="admin_branch"><option value="">اختر الفرع</option></select>
-          <input type="text" id="admin_teacherSearch" placeholder="ابحث عن معلم...">
-          <div class="chip-list" id="admin_teacherResults"></div>
+          <select id="admin_teacher" disabled><option value="">اختر الفرع أولًا</option></select>
         </div>
         <p id="adminSelectedTeacher" style="color:var(--primary); font-size:13px; display:none;"></p>
 
@@ -102,7 +101,68 @@
     .sub-tab-btn.active { color: var(--primary-dark); border-bottom-color: var(--gold); }
   </style>
 
-  <script src="/js/shell.js?v=5"></script>
-  <script src="/js/grading.js?v=5"></script>
+  <!-- نافذة بدء رصد يدوي جديد -->
+  <div class="modal-overlay" id="manualModal" hidden>
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header"><h2>إضافة رصد يدوي جديد</h2><button class="modal-close" id="closeManualModal">✕</button></div>
+      <div class="modal-body">
+        <form id="manualForm">
+          <div class="form-row">
+            <div class="form-group"><label>الفرع</label><select id="mm_branch"></select></div>
+            <div class="form-group"><label>المرحلة</label><select id="mm_stages"></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>الصف</label><select id="mm_grades"></select></div>
+            <div class="form-group"><label>الشعبة</label><select id="mm_sections"></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>الترم</label><select id="mm_term"></select></div>
+            <div class="form-group"><label>نوع التقييم</label><select id="mm_eval_type"></select></div>
+          </div>
+          <div class="form-group"><label>اسم التكليف/الجلسة</label><input type="text" id="mm_task_name" required></div>
+          <div class="form-group"><label>الدرجة العظمى</label><input type="number" id="mm_max_score" min="0" required></div>
+          <p class="form-error" id="manualFormError"></p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" form="manualForm" class="btn btn-primary" id="manualNextBtn">التالي: عرض الطلاب</button>
+        <button type="button" class="btn btn-outline" id="cancelManualBtn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة بدء رصد مشاركة فوري -->
+  <div class="modal-overlay" id="participationModal" hidden>
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header"><h2>رصد مشاركة وتفاعل فوري</h2><button class="modal-close" id="closeParticipationModal">✕</button></div>
+      <div class="modal-body">
+        <form id="participationForm">
+          <div class="form-group"><label>اسم المشاركة</label><input type="text" id="pm_name" placeholder="مثال: مشاركة الحصة، سؤال شفهي..." required></div>
+          <div class="form-group"><label>التفاصيل (اختياري)</label><input type="text" id="pm_details"></div>
+          <div class="form-row">
+            <div class="form-group"><label>الفرع</label><select id="pm_branch"></select></div>
+            <div class="form-group"><label>المرحلة</label><select id="pm_stages"></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>الصف</label><select id="pm_grades"></select></div>
+            <div class="form-group"><label>الشعبة</label><select id="pm_sections"></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>الترم</label><select id="pm_term"></select></div>
+            <div class="form-group"><label>الدرجة العظمى</label><input type="number" id="pm_max" min="0" value="5" required></div>
+          </div>
+          <p class="overview-hint" style="margin:0;">تاريخ الرصد = اليوم تلقائيًا</p>
+          <p class="form-error" id="participationFormError"></p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" form="participationForm" class="btn btn-primary" id="participationNextBtn">التالي: عرض الطلاب</button>
+        <button type="button" class="btn btn-outline" id="cancelParticipationBtn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/shell.js?v=6"></script>
+  <script src="/js/grading.js?v=6"></script>
 </body>
 </html>

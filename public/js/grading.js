@@ -29,7 +29,11 @@ async function init() {
   if (user.role === 'admin') {
     document.getElementById('adminPicker').style.display = 'flex';
     fillSelect('admin_branch', allLists.branches, 'اختر الفرع');
-    document.getElementById('admin_teacherSearch').addEventListener('input', debounce(searchTeachers, 300));
+    document.getElementById('admin_branch').addEventListener('change', loadTeachersForBranch);
+    document.getElementById('admin_teacher').addEventListener('change', () => {
+      const opt = document.getElementById('admin_teacher').selectedOptions[0];
+      if (opt && opt.value) selectTeacher(JSON.parse(opt.dataset.teacher));
+    });
   } else {
     mySubjects = splitList(user.subject);
     renderSubjectTabs();
@@ -50,6 +54,14 @@ async function init() {
   document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
+
+  document.getElementById('closeManualModal').addEventListener('click', () => { document.getElementById('manualModal').hidden = true; });
+  document.getElementById('cancelManualBtn').addEventListener('click', () => { document.getElementById('manualModal').hidden = true; });
+  document.getElementById('manualForm').addEventListener('submit', submitManualMeta);
+
+  document.getElementById('closeParticipationModal').addEventListener('click', () => { document.getElementById('participationModal').hidden = true; });
+  document.getElementById('cancelParticipationBtn').addEventListener('click', () => { document.getElementById('participationModal').hidden = true; });
+  document.getElementById('participationForm').addEventListener('submit', submitParticipationMeta);
 
   loadStats();
 }
@@ -92,25 +104,29 @@ function fillSelect(id, options = [], placeholder = null) {
 
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
-/* ---------------- أدمن: اختيار الفرع ثم المعلم ---------------- */
-async function searchTeachers() {
+/* ---------------- أدمن: اختيار الفرع ثم المعلم من قائمة حقيقية ---------------- */
+async function loadTeachersForBranch() {
   const branch = document.getElementById('admin_branch').value;
-  const q = document.getElementById('admin_teacherSearch').value.trim();
-  const results = document.getElementById('admin_teacherResults');
-  if (q.length < 2) { results.innerHTML = ''; return; }
+  const teacherSelect = document.getElementById('admin_teacher');
+  if (!branch) { teacherSelect.disabled = true; teacherSelect.innerHTML = '<option value="">اختر الفرع أولًا</option>'; return; }
 
+  teacherSelect.disabled = false;
+  teacherSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
   try {
-    const res = await mirqatApi('employees', 'list', { filters: { search: q, branch: branch || undefined, role: 'teacher' } });
-    results.innerHTML = res.rows.slice(0, 8).map(t =>
-      `<span class="chip" style="cursor:pointer" onclick='selectTeacher(${JSON.stringify(t).replace(/'/g, "&apos;")})'>${t.name_ar}</span>`
-    ).join('') || '<span class="chip">لا نتائج</span>';
-  } catch { /* silent */ }
+    const res = await mirqatApi('employees', 'list', { filters: { branch, role: 'teacher' }, page: 1, pageSize: 100 });
+    if (!res.rows.length) {
+      teacherSelect.innerHTML = '<option value="">لا يوجد معلمون بهذا الفرع</option>';
+      return;
+    }
+    teacherSelect.innerHTML = '<option value="">اختر المعلم</option>' +
+      res.rows.map(t => `<option value="${t.id}" data-teacher='${JSON.stringify(t).replace(/'/g, "&apos;")}'>${t.name_ar}</option>`).join('');
+  } catch (e) {
+    teacherSelect.innerHTML = '<option value="">تعذّر التحميل</option>';
+  }
 }
 
 function selectTeacher(teacher) {
   selectedTeacher = teacher;
-  document.getElementById('admin_teacherResults').innerHTML = '';
-  document.getElementById('admin_teacherSearch').value = teacher.name_ar;
   document.getElementById('adminSelectedTeacher').style.display = 'block';
   document.getElementById('adminSelectedTeacher').textContent = `تعرض الآن مواد: ${teacher.name_ar}`;
   mySubjects = splitList(teacher.subject);
@@ -264,57 +280,76 @@ async function openTaskRoster(task) {
 
 /* ============ 2) رصد يدوي ============ */
 function renderManual(el) {
-  const sf = scopeFields();
   el.innerHTML = `
-    <p class="overview-hint">الأسبوع الدراسي يُسجَّل تلقائيًا من التقويم: ${currentWeekInfo ? currentWeekInfo.term + ' — ' + currentWeekInfo.week : 'لا يوجد أسبوع مطابق لتاريخ اليوم في التقويم'}</p>
-    <div class="toolbar">
-      <select id="m_branch">${sf.branches.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="m_stages">${sf.stages.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="m_grades">${sf.grades.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="m_sections">${sf.sections.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="m_term">${(allLists.terms || []).map(t => `<option value="${t}" ${t === currentWeekInfo?.term ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <select id="m_eval_type">${evalTypes.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
-      <input type="text" id="m_task_name" placeholder="اسم التكليف/الجلسة">
-      <input type="number" id="m_max_score" placeholder="الدرجة العظمى" style="max-width:110px" min="0">
-      <button class="btn btn-primary" id="m_loadBtn">عرض الشعبة</button>
-    </div>
-    <div class="table-wrap" id="m_rosterWrap" style="display:none">
-      <table class="data-table"><thead><tr><th>الطالب</th><th>الدرجة</th></tr></thead><tbody id="m_rosterBody"></tbody></table>
-    </div>
-    <div id="m_actions" style="display:none; margin-top:14px;">
-      <button class="btn btn-primary" id="m_saveBtn">حفظ الدرجات</button>
-      <p class="form-error" id="m_error"></p>
-    </div>
+    <button class="btn btn-primary" id="openManualBtn">+ إضافة رصد جديد</button>
+    <p class="overview-hint" style="margin-top:14px;">الأسبوع الدراسي يُسجَّل تلقائيًا من التقويم: ${currentWeekInfo ? currentWeekInfo.term + ' — ' + currentWeekInfo.week : 'لا يوجد أسبوع مطابق لتاريخ اليوم'}</p>
+    <div id="manualRosterArea" style="margin-top:18px;"></div>
   `;
 
-  document.getElementById('m_loadBtn').addEventListener('click', async () => {
-    const branch = document.getElementById('m_branch').value, stages = document.getElementById('m_stages').value;
-    const grades = document.getElementById('m_grades').value, sections = document.getElementById('m_sections').value;
-    if (!grades) { alert('اختر الصف'); return; }
-
-    try {
-      currentRoster = await mirqatApi('grading', 'getRoster', { filters: { branch, stages, grades, sections } }, { cache: false });
-    } catch (e) { alert('تعذّر تحميل الطلاب: ' + e.message); return; }
-
-    document.getElementById('m_rosterBody').innerHTML = currentRoster.map(s => `
-      <tr data-student-id="${s.id}">
-        <td data-label="الطالب">${s.name_ar}</td>
-        <td data-label="الدرجة"><input type="number" class="score-input" min="0" style="width:100px"></td>
-      </tr>
-    `).join('') || '<tr><td colspan="2" class="empty-state">لا يوجد طلاب</td></tr>';
-    document.getElementById('m_rosterWrap').style.display = 'block';
-    document.getElementById('m_actions').style.display = currentRoster.length ? 'block' : 'none';
+  document.getElementById('openManualBtn').addEventListener('click', () => {
+    const sf = scopeFields();
+    fillSelect('mm_branch', sf.branches);
+    fillSelect('mm_stages', sf.stages);
+    fillSelect('mm_grades', sf.grades);
+    fillSelect('mm_sections', sf.sections);
+    fillSelect('mm_term', allLists.terms);
+    if (currentWeekInfo?.term) document.getElementById('mm_term').value = currentWeekInfo.term;
+    fillSelect('mm_eval_type', evalTypes);
+    document.getElementById('mm_task_name').value = '';
+    document.getElementById('mm_max_score').value = '';
+    document.getElementById('manualFormError').textContent = '';
+    document.getElementById('manualModal').hidden = false;
   });
+}
 
-  document.getElementById('m_saveBtn').addEventListener('click', async () => {
-    const errorEl = document.getElementById('m_error');
-    errorEl.textContent = '';
-    const maxScore = document.getElementById('m_max_score').value;
-    const evalType = document.getElementById('m_eval_type').value;
-    const taskName = document.getElementById('m_task_name').value.trim();
-    if (!maxScore || !evalType || !taskName) { errorEl.textContent = 'عبّي نوع التقييم واسم التكليف والدرجة العظمى'; return; }
+async function submitManualMeta(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('manualFormError');
+  errorEl.textContent = '';
 
-    const rows = Array.from(document.querySelectorAll('#m_rosterBody tr[data-student-id]'));
+  const meta = {
+    branch: document.getElementById('mm_branch').value,
+    stages: document.getElementById('mm_stages').value,
+    grades: document.getElementById('mm_grades').value,
+    sections: document.getElementById('mm_sections').value,
+    term: document.getElementById('mm_term').value,
+    eval_type: document.getElementById('mm_eval_type').value,
+    task_name: document.getElementById('mm_task_name').value.trim(),
+    max_score: document.getElementById('mm_max_score').value
+  };
+  if (!meta.grades || !meta.eval_type || !meta.task_name || !meta.max_score) {
+    errorEl.textContent = 'عبّي كل الحقول المطلوبة';
+    return;
+  }
+
+  let roster;
+  try {
+    roster = await mirqatApi('grading', 'getRoster', { filters: meta }, { cache: false });
+  } catch (err) { errorEl.textContent = 'تعذّر تحميل الطلاب: ' + err.message; return; }
+
+  document.getElementById('manualModal').hidden = true;
+  currentRoster = roster;
+
+  const area = document.getElementById('manualRosterArea');
+  area.innerHTML = `
+    <h3 style="font-size:14px; color:var(--primary-dark);">${meta.task_name} — من ${meta.max_score} (${meta.eval_type})</h3>
+    <div class="table-wrap">
+      <table class="data-table"><thead><tr><th>الطالب</th><th>الدرجة</th></tr></thead>
+        <tbody>${roster.map(s => `
+          <tr data-student-id="${s.id}">
+            <td data-label="الطالب">${s.name_ar}</td>
+            <td data-label="الدرجة"><input type="number" class="score-input" min="0" max="${meta.max_score}" style="width:100px"></td>
+          </tr>`).join('') || '<tr><td colspan="2" class="empty-state">لا يوجد طلاب</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary" id="saveManualBtn" style="margin-top:12px;">حفظ الدرجات</button>
+    <p class="form-error" id="manualRosterError"></p>
+  `;
+
+  document.getElementById('saveManualBtn').addEventListener('click', async () => {
+    const rErrorEl = document.getElementById('manualRosterError');
+    const rows = Array.from(document.querySelectorAll('#manualRosterArea tr[data-student-id]'));
     const records = rows.map(row => {
       const val = row.querySelector('.score-input').value;
       if (val === '') return null;
@@ -322,76 +357,91 @@ function renderManual(el) {
       const student = currentRoster.find(s => s.id === studentId);
       return {
         student_id: studentId, student_name: student?.name_ar,
-        branch: document.getElementById('m_branch').value, stages: document.getElementById('m_stages').value,
-        grades: document.getElementById('m_grades').value, sections: document.getElementById('m_sections').value,
-        subject: currentSubject, term: document.getElementById('m_term').value, week: currentWeekInfo?.week || null, eval_type: evalType,
-        task_name: taskName, earned_score: Number(val), max_score: Number(maxScore)
+        branch: meta.branch, stages: meta.stages, grades: meta.grades, sections: meta.sections,
+        subject: currentSubject, term: meta.term, week: currentWeekInfo?.week || null,
+        eval_type: meta.eval_type, task_name: meta.task_name,
+        earned_score: Number(val), max_score: Number(meta.max_score)
       };
     }).filter(Boolean);
 
-    if (!records.length) { errorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
+    if (!records.length) { rErrorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
 
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
-      document.getElementById('m_rosterWrap').style.display = 'none';
-      document.getElementById('m_actions').style.display = 'none';
-    } catch (e) { errorEl.textContent = e.message; }
+      area.innerHTML = '<p class="overview-hint">تم الحفظ ✓</p>';
+      loadStats();
+    } catch (err) { rErrorEl.textContent = err.message; }
   });
 }
 
 /* ============ 3) مشاركة وتفاعل فوري ============ */
 function renderParticipation(el) {
-  const sf = scopeFields();
   el.innerHTML = `
-    <p class="overview-hint">تاريخ وأسبوع الرصد = اليوم تلقائيًا: ${currentWeekInfo ? currentWeekInfo.term + ' — ' + currentWeekInfo.week : 'لا يوجد أسبوع مطابق لتاريخ اليوم'}</p>
-    <div class="form-group"><label>اسم المشاركة</label><input type="text" id="p_name" placeholder="مثال: مشاركة الحصة، سؤال شفهي..."></div>
-    <div class="form-row">
-      <div class="form-group"><label>التفاصيل (اختياري)</label><input type="text" id="p_details"></div>
-      <div class="form-group"><label>الدرجة العظمى</label><input type="number" id="p_max" min="0" value="5"></div>
-    </div>
-    <div class="toolbar">
-      <select id="p_branch">${sf.branches.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="p_stages">${sf.stages.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="p_grades">${sf.grades.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="p_sections">${sf.sections.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="p_term">${(allLists.terms || []).map(t => `<option value="${t}" ${t === currentWeekInfo?.term ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <button class="btn btn-outline" id="p_loadBtn">تحميل الصف</button>
-    </div>
-    <div class="table-wrap" id="p_rosterWrap" style="display:none">
-      <table class="data-table"><thead><tr><th>الطالب</th><th>الدرجة</th></tr></thead><tbody id="p_rosterBody"></tbody></table>
-    </div>
-    <div id="p_actions" style="display:none; margin-top:14px;">
-      <button class="btn btn-primary" id="p_saveBtn">حفظ المشاركة (تاريخ اليوم)</button>
-      <p class="form-error" id="p_error"></p>
-    </div>
+    <button class="btn btn-primary" id="openParticipationBtn">+ رصد مشاركة الآن</button>
+    <div id="participationRosterArea" style="margin-top:18px;"></div>
   `;
 
-  document.getElementById('p_loadBtn').addEventListener('click', async () => {
-    const branch = document.getElementById('p_branch').value, stages = document.getElementById('p_stages').value;
-    const grades = document.getElementById('p_grades').value, sections = document.getElementById('p_sections').value;
-    if (!grades) { alert('اختر الصف'); return; }
-    try {
-      currentRoster = await mirqatApi('grading', 'getRoster', { filters: { branch, stages, grades, sections } }, { cache: false });
-    } catch (e) { alert('تعذّر التحميل: ' + e.message); return; }
-
-    document.getElementById('p_rosterBody').innerHTML = currentRoster.map(s => `
-      <tr data-student-id="${s.id}">
-        <td data-label="الطالب">${s.name_ar}</td>
-        <td data-label="الدرجة"><input type="number" class="score-input" min="0" style="width:100px"></td>
-      </tr>
-    `).join('') || '<tr><td colspan="2" class="empty-state">لا يوجد طلاب</td></tr>';
-    document.getElementById('p_rosterWrap').style.display = 'block';
-    document.getElementById('p_actions').style.display = currentRoster.length ? 'block' : 'none';
+  document.getElementById('openParticipationBtn').addEventListener('click', () => {
+    const sf = scopeFields();
+    fillSelect('pm_branch', sf.branches);
+    fillSelect('pm_stages', sf.stages);
+    fillSelect('pm_grades', sf.grades);
+    fillSelect('pm_sections', sf.sections);
+    fillSelect('pm_term', allLists.terms);
+    if (currentWeekInfo?.term) document.getElementById('pm_term').value = currentWeekInfo.term;
+    document.getElementById('pm_name').value = '';
+    document.getElementById('pm_details').value = '';
+    document.getElementById('pm_max').value = 5;
+    document.getElementById('participationFormError').textContent = '';
+    document.getElementById('participationModal').hidden = false;
   });
+}
 
-  document.getElementById('p_saveBtn').addEventListener('click', async () => {
-    const errorEl = document.getElementById('p_error');
-    errorEl.textContent = '';
-    const name = document.getElementById('p_name').value.trim();
-    const max = document.getElementById('p_max').value;
-    if (!name || !max) { errorEl.textContent = 'اسم المشاركة والدرجة العظمى مطلوبان'; return; }
+async function submitParticipationMeta(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('participationFormError');
+  errorEl.textContent = '';
 
-    const rows = Array.from(document.querySelectorAll('#p_rosterBody tr[data-student-id]'));
+  const meta = {
+    branch: document.getElementById('pm_branch').value,
+    stages: document.getElementById('pm_stages').value,
+    grades: document.getElementById('pm_grades').value,
+    sections: document.getElementById('pm_sections').value,
+    term: document.getElementById('pm_term').value,
+    name: document.getElementById('pm_name').value.trim(),
+    details: document.getElementById('pm_details').value.trim(),
+    max: document.getElementById('pm_max').value
+  };
+  if (!meta.grades || !meta.name || !meta.max) { errorEl.textContent = 'عبّي كل الحقول المطلوبة'; return; }
+
+  let roster;
+  try {
+    roster = await mirqatApi('grading', 'getRoster', { filters: meta }, { cache: false });
+  } catch (err) { errorEl.textContent = 'تعذّر تحميل الطلاب: ' + err.message; return; }
+
+  document.getElementById('participationModal').hidden = true;
+  currentRoster = roster;
+
+  const area = document.getElementById('participationRosterArea');
+  area.innerHTML = `
+    <h3 style="font-size:14px; color:var(--primary-dark);">${meta.name} — من ${meta.max}</h3>
+    <div class="table-wrap">
+      <table class="data-table"><thead><tr><th>الطالب</th><th>الدرجة</th></tr></thead>
+        <tbody>${roster.map(s => `
+          <tr data-student-id="${s.id}">
+            <td data-label="الطالب">${s.name_ar}</td>
+            <td data-label="الدرجة"><input type="number" class="score-input" min="0" max="${meta.max}" style="width:100px"></td>
+          </tr>`).join('') || '<tr><td colspan="2" class="empty-state">لا يوجد طلاب</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary" id="saveParticipationBtn" style="margin-top:12px;">حفظ المشاركة (تاريخ اليوم)</button>
+    <p class="form-error" id="participationRosterError"></p>
+  `;
+
+  document.getElementById('saveParticipationBtn').addEventListener('click', async () => {
+    const rErrorEl = document.getElementById('participationRosterError');
+    const rows = Array.from(document.querySelectorAll('#participationRosterArea tr[data-student-id]'));
     const records = rows.map(row => {
       const val = row.querySelector('.score-input').value;
       if (val === '') return null;
@@ -399,22 +449,22 @@ function renderParticipation(el) {
       const student = currentRoster.find(s => s.id === studentId);
       return {
         student_id: studentId, student_name: student?.name_ar,
-        branch: document.getElementById('p_branch').value, stages: document.getElementById('p_stages').value,
-        grades: document.getElementById('p_grades').value, sections: document.getElementById('p_sections').value,
-        subject: currentSubject, term: document.getElementById('p_term').value, week: currentWeekInfo?.week || null, eval_type: 'المشاركة و تفاعل',
-        task_name: name + (document.getElementById('p_details').value.trim() ? ' — ' + document.getElementById('p_details').value.trim() : ''),
-        earned_score: Number(val), max_score: Number(max),
+        branch: meta.branch, stages: meta.stages, grades: meta.grades, sections: meta.sections,
+        subject: currentSubject, term: meta.term, week: currentWeekInfo?.week || null,
+        eval_type: 'المشاركة و تفاعل',
+        task_name: meta.name + (meta.details ? ' — ' + meta.details : ''),
+        earned_score: Number(val), max_score: Number(meta.max),
         recorded_date: new Date().toISOString().slice(0, 10)
       };
     }).filter(Boolean);
 
-    if (!records.length) { errorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
+    if (!records.length) { rErrorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
 
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
-      document.getElementById('p_rosterWrap').style.display = 'none';
-      document.getElementById('p_actions').style.display = 'none';
-    } catch (e) { errorEl.textContent = e.message; }
+      area.innerHTML = '<p class="overview-hint">تم الحفظ ✓</p>';
+      loadStats();
+    } catch (err) { rErrorEl.textContent = err.message; }
   });
 }
 
