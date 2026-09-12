@@ -12,9 +12,9 @@ const MIRQAT_NAV = [
   { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: true },
   { key: 'grading', label: 'رصد الدرجات', href: '/grading.html', ready: true },
   { key: 'behavior', label: 'السلوك', href: '/behavior.html', ready: true },
-  { key: 'reports', label: 'التقارير', href: '/reports.html', ready: false },
-  { key: 'audit', label: 'سجل التتبع', href: '/audit.html', ready: false, adminOnly: true },
-  { key: 'settings', label: 'الإعدادات', href: '/settings.html', ready: false, adminOnly: true }
+  { key: 'reports', label: 'التقارير', href: '/reports.html', ready: true },
+  { key: 'audit', label: 'سجل التتبع', href: '/audit.html', ready: true, adminOnly: true },
+  { key: 'settings', label: 'الإعدادات', href: '/settings.html', ready: true, adminOnly: true }
 ];
 
 function mirqatGetSession() {
