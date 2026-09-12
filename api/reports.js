@@ -2,7 +2,7 @@ import supabase from '../lib/supabase.js';
 import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
-import { applyEmployeeScope } from '../lib/scope.js';
+import { applyEmployeeScope, applySubjectScope } from '../lib/scope.js';
 
 const SCORE_COLS = [
   'homework', 'research_reports', 'worksheets', 'participation', 'quizzes',
@@ -57,7 +57,7 @@ async function getGradeAggregation(req, res, user, { studentId, term } = {}) {
 
   let query = supabase.from('grade_aggregation').select('*').eq('student_id', studentId);
   if (term) query = query.eq('term', term);
-  if (user.role !== 'admin' && user.subject) query = query.eq('subject', user.subject);
+  query = applySubjectScope(query, user);
 
   const { data, error } = await query;
   if (error) return fail(res, 'تعذّر جلب الدرجات', 500);
@@ -69,7 +69,7 @@ async function toggleGradeVisibility(req, res, user, { id, visible } = {}) {
   if (!id || typeof visible !== 'boolean') return fail(res, 'بيانات ناقصة', 400);
 
   let query = supabase.from('grade_aggregation').update({ is_visible: visible }).eq('id', id);
-  if (user.role !== 'admin' && user.subject) query = query.eq('subject', user.subject);
+  query = applySubjectScope(query, user);
 
   const { error } = await query;
   if (error) return fail(res, 'تعذّر تغيير حالة الظهور', 500);
@@ -105,7 +105,7 @@ async function getStudentReportCard(req, res, user, { studentId, term } = {}) {
 
   let gradesQuery = supabase.from('grade_aggregation').select('*').eq('student_id', studentId);
   if (term) gradesQuery = gradesQuery.eq('term', term);
-  if (user.role !== 'admin' && user.subject) gradesQuery = gradesQuery.eq('subject', user.subject);
+  gradesQuery = applySubjectScope(gradesQuery, user);
 
   const { data: grades, error: gradesError } = await gradesQuery;
   if (gradesError) return fail(res, 'تعذّر جلب درجات التقرير', 500);
@@ -146,7 +146,7 @@ async function getClassComparison(req, res, user, { studentId, term, subject } =
     .eq('sections', student.sections);
 
   if (subject) query = query.eq('subject', subject);
-  if (user.role !== 'admin' && user.subject) query = query.eq('subject', user.subject);
+  query = applySubjectScope(query, user);
 
   const { data: classRows, error } = await query;
   if (error) return fail(res, 'تعذّر جلب بيانات المقارنة', 500);
