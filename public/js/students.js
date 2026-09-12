@@ -4,6 +4,7 @@ let editingId = null;
 let deleteTargetId = null;
 let currentPage = 1;
 let studentsCache = [];
+let gradesChartInstance = null;
 
 if (user) init();
 
@@ -29,7 +30,7 @@ async function init() {
   fillSelect('f_sections', allLists.sections);
 
   ['searchInput', 'filterBranch', 'filterStage', 'filterGrade', 'filterSection'].forEach(id => {
-    document.getElementById(id).addEventListener('input', debounce(() => loadStudents(1), 300));
+    document.getElementById(id).addEventListener('input', debounce(handleFiltersChanged, 350));
   });
 
   document.getElementById('addStudentBtn').addEventListener('click', () => openStudentModal());
@@ -41,7 +42,7 @@ async function init() {
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
 
-  loadStudents(1);
+  loadOverview();
 }
 
 function fillSelect(id, options = [], placeholder = null) {
@@ -55,18 +56,115 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-async function loadStudents(page = currentPage) {
-  currentPage = page;
-  const body = document.getElementById('studentsTableBody');
-  body.innerHTML = '<tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>';
-
-  const filters = {
+function getFilters() {
+  return {
     search: document.getElementById('searchInput').value.trim() || undefined,
     branch: document.getElementById('filterBranch').value || undefined,
     stages: document.getElementById('filterStage').value || undefined,
     grades: document.getElementById('filterGrade').value || undefined,
     sections: document.getElementById('filterSection').value || undefined
   };
+}
+
+function hasActiveFilter(filters) {
+  return Object.values(filters).some(v => v !== undefined && v !== '');
+}
+
+function handleFiltersChanged() {
+  const filters = getFilters();
+  if (hasActiveFilter(filters)) {
+    document.getElementById('overviewSection').style.display = 'none';
+    document.getElementById('resultsTableWrap').style.display = 'block';
+    loadStudents(1);
+  } else {
+    document.getElementById('resultsTableWrap').style.display = 'none';
+    document.getElementById('paginationBar').innerHTML = '';
+    document.getElementById('overviewSection').style.display = 'block';
+  }
+}
+
+/* ---------------- النظرة العامة (إحصائيات + رسم بياني + آخر 10) ---------------- */
+async function loadOverview() {
+  try {
+    const stats = await mirqatApi('students', 'getStats', {});
+    renderStatsCards(stats);
+    renderGradesChart(stats.byGrade);
+  } catch (e) {
+    document.getElementById('statsCards').innerHTML = `<p class="empty-state">تعذّر تحميل الإحصائيات: ${e.message}</p>`;
+  }
+
+  try {
+    const recent = await mirqatApi('students', 'getRecent', { limit: 10 });
+    renderRecentTable(recent);
+  } catch (e) {
+    document.getElementById('recentTableBody').innerHTML = `<tr><td colspan="4" class="empty-state">تعذّر التحميل</td></tr>`;
+  }
+}
+
+function renderStatsCards(stats) {
+  const topBranch = [...stats.byBranch].sort((a, b) => b.count - a.count)[0];
+  const cards = [
+    { label: 'إجمالي الطلاب', value: stats.total, tone: 'primary' },
+    { label: 'عدد الفروع', value: stats.byBranch.length, tone: 'gold' },
+    { label: 'أكبر فرع', value: topBranch ? `${topBranch.label} (${topBranch.count})` : '—', tone: 'info' }
+  ];
+  document.getElementById('statsCards').innerHTML = cards.map(c => `
+    <div class="card" data-tone="${c.tone}">
+      <div class="card-value" style="font-size:${typeof c.value === 'string' && c.value.length > 8 ? '18px' : '28px'}">${c.value}</div>
+      <div class="card-label">${c.label}</div>
+    </div>
+  `).join('');
+}
+
+function renderGradesChart(byGrade) {
+  const ctx = document.getElementById('gradesChart');
+  if (gradesChartInstance) gradesChartInstance.destroy();
+
+  gradesChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: byGrade.map(g => g.label),
+      datasets: [{
+        label: 'عدد الطلاب',
+        data: byGrade.map(g => g.count),
+        backgroundColor: '#2F6B52',
+        borderRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+}
+
+function renderRecentTable(students) {
+  const body = document.getElementById('recentTableBody');
+  if (!students.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty-state">لا يوجد طلاب بعد</td></tr>';
+    return;
+  }
+  body.innerHTML = students.map(s => `
+    <tr class="clickable" onclick="openStudentDrawerFromRecent('${s.id}')">
+      <td>${s.id}</td><td>${s.name_ar}</td><td>${s.branch || '—'}</td><td>${s.grades || '—'}</td>
+    </tr>
+  `).join('');
+  window.__recentCache = students;
+}
+
+function openStudentDrawerFromRecent(id) {
+  const s = (window.__recentCache || []).find(x => x.id === id);
+  if (s) { studentsCache = window.__recentCache; openStudentDrawer(id); }
+}
+
+/* ---------------- نتائج الفلترة (مُرقَّمة) ---------------- */
+async function loadStudents(page = currentPage) {
+  currentPage = page;
+  const body = document.getElementById('studentsTableBody');
+  body.innerHTML = '<tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>';
+
+  const filters = getFilters();
 
   try {
     const result = await mirqatApi('students', 'list', { filters, page, pageSize: 25 });
@@ -80,12 +178,10 @@ async function loadStudents(page = currentPage) {
 
 function renderTable(students) {
   const body = document.getElementById('studentsTableBody');
-
   if (!students.length) {
     body.innerHTML = '<tr><td colspan="7" class="empty-state">لا يوجد طلاب مطابقون</td></tr>';
     return;
   }
-
   body.innerHTML = students.map(s => `
     <tr class="clickable" onclick="openStudentDrawer('${s.id}')">
       <td>${s.id}</td>
@@ -99,7 +195,7 @@ function renderTable(students) {
   `).join('');
 }
 
-/* ---------------- لوحة التفاصيل الجانبية ---------------- */
+/* ---------------- نافذة التفاصيل ---------------- */
 function openStudentDrawer(id) {
   const s = studentsCache.find(x => x.id === id);
   if (!s) return;
@@ -174,12 +270,13 @@ async function submitStudentForm(e) {
 
   try {
     if (editingId) {
-      await mirqatApi('students', 'update', { id: editingId, data });
+      await mirqatApi('students', 'update', { id: editingId, data }, { cache: false });
     } else {
-      await mirqatApi('students', 'create', { data });
+      await mirqatApi('students', 'create', { data }, { cache: false });
     }
     closeStudentModal();
-    loadStudents(editingId ? currentPage : 1);
+    handleFiltersChanged();
+    loadOverview();
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -202,9 +299,10 @@ function closeConfirmModal() {
 async function performDelete() {
   if (!deleteTargetId) return;
   try {
-    await mirqatApi('students', 'delete', { id: deleteTargetId });
+    await mirqatApi('students', 'delete', { id: deleteTargetId }, { cache: false });
     closeConfirmModal();
-    loadStudents(currentPage);
+    handleFiltersChanged();
+    loadOverview();
   } catch (e) {
     alert('تعذّر حذف الطالب: ' + e.message);
   }
