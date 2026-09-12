@@ -75,9 +75,9 @@ function renderGrades(grades) {
   }
   body.innerHTML = grades.map(g => `
     <tr>
-      <td>${g.subject}</td>
-      <td>${g.total}</td>
-      <td>${g.is_visible ? 'نعم' : 'لا'}</td>
+      <td data-label="المادة">${g.subject}</td>
+      <td data-label="المجموع">${g.total}</td>
+      <td data-label="ظاهر لولي الأمر؟">${g.is_visible ? 'نعم' : 'لا'}</td>
       <td>
         <div class="row-actions">
           <button class="btn btn-outline btn-sm" onclick="toggleVisibility(${g.id}, ${!g.is_visible})">${g.is_visible ? 'إخفاء' : 'إظهار'}</button>
@@ -96,10 +96,10 @@ function renderBehavior(behavior) {
   }
   body.innerHTML = behavior.slice(0, 10).map(b => `
     <tr>
-      <td>${b.created_at ? new Date(b.created_at).toLocaleDateString('ar-SA') : '—'}</td>
-      <td>${b.status || '—'}</td>
-      <td>${b.score ?? '—'}</td>
-      <td>${b.note || '—'}</td>
+      <td data-label="التاريخ">${b.created_at ? new Date(b.created_at).toLocaleDateString('ar-SA') : '—'}</td>
+      <td data-label="الحالة">${b.status || '—'}</td>
+      <td data-label="الدرجة">${b.score ?? '—'}</td>
+      <td data-label="الملاحظة">${b.note || '—'}</td>
     </tr>
   `).join('');
 }
@@ -129,10 +129,10 @@ async function compareSubject(subject) {
         <thead><tr><th>المادة</th><th>درجة الطالب</th><th>متوسط الشعبة</th><th>عدد الطلاب</th></tr></thead>
         <tbody>
           <tr>
-            <td>${subject}</td>
-            <td>${studentTotal}</td>
-            <td>${data.classAverage.total ?? '—'}</td>
-            <td>${data.classSize}</td>
+            <td data-label="المادة">${subject}</td>
+            <td data-label="درجة الطالب">${studentTotal}</td>
+            <td data-label="متوسط الشعبة">${data.classAverage.total ?? '—'}</td>
+            <td data-label="عدد الطلاب">${data.classSize}</td>
           </tr>
         </tbody>
       </table>

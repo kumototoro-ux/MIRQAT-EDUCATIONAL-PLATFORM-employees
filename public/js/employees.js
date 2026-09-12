@@ -99,12 +99,12 @@ function renderTable(employees) {
 
   body.innerHTML = employees.map(e => `
     <tr>
-      <td>${e.id}</td>
-      <td>${e.name_ar}</td>
-      <td>${e.role === 'admin' ? 'أدمن' : 'معلم'}</td>
-      <td>${e.branch || '—'}</td>
-      <td>${e.grades || '—'}</td>
-      <td>${e.subject || '—'}</td>
+      <td data-label="المعرّف">${e.id}</td>
+      <td data-label="الاسم">${e.name_ar}</td>
+      <td data-label="الدور">${e.role === 'admin' ? 'أدمن' : 'معلم'}</td>
+      <td data-label="الفرع">${e.branch || '—'}</td>
+      <td data-label="الصفوف">${e.grades || '—'}</td>
+      <td data-label="المواد">${e.subject || '—'}</td>
       <td>
         <div class="row-actions">
           <button class="btn btn-outline btn-sm" onclick="editEmployee('${e.id}')">تعديل</button>

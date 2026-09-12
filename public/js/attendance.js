@@ -72,8 +72,8 @@ async function loadRoster() {
   } else {
     body.innerHTML = currentRoster.map(s => `
       <tr data-student-id="${s.id}">
-        <td>${s.name_ar}</td>
-        <td>
+        <td data-label="الطالب">${s.name_ar}</td>
+        <td data-label="الحالة">
           <select class="status-select">
             ${statuses.map(st => `<option value="${st}" ${st === 'حاضر' ? 'selected' : ''}>${st}</option>`).join('')}
           </select>
@@ -135,12 +135,12 @@ async function loadRecords() {
     }
     body.innerHTML = records.slice(0, 50).map(r => `
       <tr>
-        <td>${r.student_name || r.student_id}</td>
-        <td>${r.subject || '—'}</td>
-        <td>${r.day || '—'}</td>
-        <td>${r.period || '—'}</td>
-        <td>${r.status || '—'}</td>
-        <td>${r.recorded_at ? new Date(r.recorded_at).toLocaleString('ar-SA') : '—'}</td>
+        <td data-label="الطالب">${r.student_name || r.student_id}</td>
+        <td data-label="المادة">${r.subject || '—'}</td>
+        <td data-label="اليوم">${r.day || '—'}</td>
+        <td data-label="الحصة">${r.period || '—'}</td>
+        <td data-label="الحالة">${r.status || '—'}</td>
+        <td data-label="وقت التسجيل">${r.recorded_at ? new Date(r.recorded_at).toLocaleString('ar-SA') : '—'}</td>
         <td><button class="btn btn-danger btn-sm" onclick="askDelete('${r.id}')">حذف</button></td>
       </tr>
     `).join('');

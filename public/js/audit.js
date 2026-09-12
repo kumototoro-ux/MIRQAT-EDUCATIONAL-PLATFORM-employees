@@ -40,11 +40,11 @@ async function loadAuditLog() {
     }
     body.innerHTML = rows.map(r => `
       <tr>
-        <td>${new Date(r.ts).toLocaleString('ar-SA')}</td>
-        <td>${r.emp_name || r.emp_id || '—'}</td>
-        <td>${r.role || '—'}</td>
-        <td>${r.action || '—'}</td>
-        <td>${r.details || '—'}</td>
+        <td data-label="الوقت">${new Date(r.ts).toLocaleString('ar-SA')}</td>
+        <td data-label="الموظف">${r.emp_name || r.emp_id || '—'}</td>
+        <td data-label="الدور">${r.role || '—'}</td>
+        <td data-label="الإجراء">${r.action || '—'}</td>
+        <td data-label="التفاصيل">${r.details || '—'}</td>
       </tr>
     `).join('');
   } catch (e) {

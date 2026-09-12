@@ -88,8 +88,8 @@ async function loadCalendar() {
     }
     body.innerHTML = calendarCache.map(c => `
       <tr>
-        <td>${c.term || '—'}</td><td>${c.period || '—'}</td><td>${c.week || '—'}</td>
-        <td>${c.week_start_date || '—'}</td><td>${c.week_end_date || '—'}</td><td>${c.event || '—'}</td>
+        <td data-label="الترم">${c.term || '—'}</td><td data-label="الفترة">${c.period || '—'}</td><td data-label="الأسبوع">${c.week || '—'}</td>
+        <td data-label="البداية">${c.week_start_date || '—'}</td><td data-label="النهاية">${c.week_end_date || '—'}</td><td data-label="الحدث">${c.event || '—'}</td>
         <td>
           ${user.role === 'admin' ? `
             <div class="row-actions">
@@ -172,9 +172,9 @@ async function loadTimetable() {
     }
     body.innerHTML = timetableCache.map(t => `
       <tr>
-        <td>${t.entry_type || '—'}</td><td>${t.day || '—'}</td>
-        <td>${t.exam_date ? (t.exam_date + ' — ' + (t.exam_time || '')) : (t.exam_time || '—')}</td>
-        <td>${t.subject || '—'}</td><td>${t.grade || '—'}</td><td>${t.employee_name || '—'}</td>
+        <td data-label="النوع">${t.entry_type || '—'}</td><td data-label="اليوم">${t.day || '—'}</td>
+        <td data-label="الوقت">${t.exam_date ? (t.exam_date + ' — ' + (t.exam_time || '')) : (t.exam_time || '—')}</td>
+        <td data-label="المادة">${t.subject || '—'}</td><td data-label="الصف">${t.grade || '—'}</td><td data-label="المعلم">${t.employee_name || '—'}</td>
         <td>
           ${user.role === 'admin' ? `
             <div class="row-actions">

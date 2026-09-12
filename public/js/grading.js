@@ -75,8 +75,8 @@ async function loadRoster() {
   } else {
     body.innerHTML = currentRoster.map(s => `
       <tr data-student-id="${s.id}">
-        <td>${s.name_ar}</td>
-        <td><input type="number" class="score-input" min="0" max="${f.max_score || ''}" style="width:100px"></td>
+        <td data-label="الطالب">${s.name_ar}</td>
+        <td data-label="الدرجة"><input type="number" class="score-input" min="0" max="${f.max_score || ''}" style="width:100px"></td>
       </tr>
     `).join('');
   }
@@ -151,12 +151,12 @@ async function loadRecords() {
     }
     body.innerHTML = records.slice(0, 50).map(r => `
       <tr>
-        <td>${r.student_name || r.student_id}</td>
-        <td>${r.subject || '—'}</td>
-        <td>${r.eval_type || '—'}</td>
-        <td>${r.task_name || '—'}</td>
-        <td>${r.earned_score ?? '—'} / ${r.max_score ?? '—'}</td>
-        <td>${r.recorded_date || '—'}</td>
+        <td data-label="الطالب">${r.student_name || r.student_id}</td>
+        <td data-label="المادة">${r.subject || '—'}</td>
+        <td data-label="النوع">${r.eval_type || '—'}</td>
+        <td data-label="التكليف">${r.task_name || '—'}</td>
+        <td data-label="الدرجة">${r.earned_score ?? '—'} / ${r.max_score ?? '—'}</td>
+        <td data-label="التاريخ">${r.recorded_date || '—'}</td>
         <td><button class="btn btn-danger btn-sm" onclick="askDelete('${r.id}')">حذف</button></td>
       </tr>
     `).join('');

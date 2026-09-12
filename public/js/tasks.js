@@ -107,13 +107,13 @@ async function loadTasks() {
     }
     body.innerHTML = tasksCache.map(t => `
       <tr>
-        <td>${t.task_name}</td>
-        <td>${t.subject || '—'}</td>
-        <td>${t.eval_type || '—'}</td>
-        <td>${t.grades || '—'}</td>
-        <td>${t.due_date || '—'}</td>
-        <td>${t.max_score ?? '—'}</td>
-        <td>${t.is_graded ? 'تم' : 'لم يُرصد'}</td>
+        <td data-label="التكليف">${t.task_name}</td>
+        <td data-label="المادة">${t.subject || '—'}</td>
+        <td data-label="النوع">${t.eval_type || '—'}</td>
+        <td data-label="الصف">${t.grades || '—'}</td>
+        <td data-label="الاستحقاق">${t.due_date || '—'}</td>
+        <td data-label="الدرجة">${t.max_score ?? '—'}</td>
+        <td data-label="الرصد">${t.is_graded ? 'تم' : 'لم يُرصد'}</td>
         <td>
           <div class="row-actions">
             <button class="btn btn-outline btn-sm" onclick="editTask(${t.id})">تعديل</button>
@@ -224,11 +224,11 @@ async function loadEnrichments() {
     }
     body.innerHTML = enrichCache.map(en => `
       <tr>
-        <td>${en.title}</td>
-        <td>${en.content_type}</td>
-        <td>${en.subject || '—'}</td>
-        <td>${en.grades || '—'}</td>
-        <td><a href="${en.link}" target="_blank" rel="noopener">فتح</a></td>
+        <td data-label="العنوان">${en.title}</td>
+        <td data-label="النوع">${en.content_type}</td>
+        <td data-label="المادة">${en.subject || '—'}</td>
+        <td data-label="الصف">${en.grades || '—'}</td>
+        <td data-label="الرابط"><a href="${en.link}" target="_blank" rel="noopener">فتح</a></td>
         <td>
           <div class="row-actions">
             <button class="btn btn-outline btn-sm" onclick="editEnrichment(${en.id})">تعديل</button>

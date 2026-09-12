@@ -71,11 +71,11 @@ async function loadStudentRecord(studentId, name) {
     }
     body.innerHTML = records.map(r => `
       <tr>
-        <td>${r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '—'}</td>
-        <td>${r.status || '—'}</td>
-        <td>${r.score ?? '—'}</td>
-        <td>${r.note || '—'}</td>
-        <td>${r.employee_name || '—'}</td>
+        <td data-label="التاريخ">${r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '—'}</td>
+        <td data-label="الحالة">${r.status || '—'}</td>
+        <td data-label="الدرجة">${r.score ?? '—'}</td>
+        <td data-label="الملاحظة">${r.note || '—'}</td>
+        <td data-label="سجّلها">${r.employee_name || '—'}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -96,11 +96,11 @@ async function loadRecords() {
     }
     body.innerHTML = records.slice(0, 50).map(r => `
       <tr>
-        <td>${r.student_name || r.student_id}</td>
-        <td>${r.status || '—'}</td>
-        <td>${r.score ?? '—'}</td>
-        <td>${r.note || '—'}</td>
-        <td>${r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '—'}</td>
+        <td data-label="الطالب">${r.student_name || r.student_id}</td>
+        <td data-label="الحالة">${r.status || '—'}</td>
+        <td data-label="الدرجة">${r.score ?? '—'}</td>
+        <td data-label="الملاحظة">${r.note || '—'}</td>
+        <td data-label="التاريخ">${r.created_at ? new Date(r.created_at).toLocaleDateString('ar-SA') : '—'}</td>
         <td><button class="btn btn-danger btn-sm" onclick="askDelete('${r.id}')">حذف</button></td>
       </tr>
     `).join('');
