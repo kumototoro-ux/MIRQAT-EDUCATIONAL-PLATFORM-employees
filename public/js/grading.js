@@ -63,6 +63,15 @@ async function init() {
   document.getElementById('cancelParticipationBtn').addEventListener('click', () => { document.getElementById('participationModal').hidden = true; });
   document.getElementById('participationForm').addEventListener('submit', submitParticipationMeta);
 
+  document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('mainPanel-stats').hidden = btn.dataset.main !== 'stats';
+      document.getElementById('mainPanel-grading').hidden = btn.dataset.main !== 'grading';
+    });
+  });
+
   loadStats();
 }
 
@@ -71,10 +80,17 @@ async function loadStats() {
   try {
     const stats = await mirqatApi('grading', 'getStats', {});
 
-    document.getElementById('statsCards').innerHTML = [
-      { label: 'رصد هذا الأسبوع', value: stats.totalThisWeek, tone: 'primary' },
-      { label: 'إجمالي كل الرصد', value: stats.totalAllTime, tone: 'gold' }
-    ].map(c => `<div class="card" data-tone="${c.tone}"><div class="card-value">${c.value}</div><div class="card-label">${c.label}</div></div>`).join('');
+    document.getElementById('statsCards').innerHTML = `
+      <div class="card" data-tone="primary">
+        <div class="card-value">${stats.totalThisWeek}</div>
+        <div class="card-label">رصد هذا الأسبوع</div>
+        ${mirqatTrendBadge(stats.totalThisWeek, stats.totalPreviousWeek)}
+      </div>
+      <div class="card" data-tone="gold">
+        <div class="card-value">${stats.totalAllTime}</div>
+        <div class="card-label">إجمالي كل الرصد</div>
+      </div>
+    `;
 
     if (stats.byEvalType && stats.byEvalType.length) {
       document.getElementById('evalChartCard').style.display = 'block';

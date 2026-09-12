@@ -130,16 +130,28 @@ async function getStats(req, res, user) {
   const today = new Date().toISOString().slice(0, 10);
   const { data: currentWeek } = await supabase
     .from('school_calendar')
-    .select('term, week')
+    .select('term, week, week_start_date')
     .lte('week_start_date', today)
     .gte('week_end_date', today)
     .limit(1)
     .maybeSingle();
 
-  const countWhere = async (status) => {
+  let previousWeek = null;
+  if (currentWeek) {
+    const { data } = await supabase
+      .from('school_calendar')
+      .select('term, week')
+      .lt('week_start_date', currentWeek.week_start_date)
+      .order('week_start_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    previousWeek = data;
+  }
+
+  const countWhere = async (status, week) => {
     let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
     if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
-    if (currentWeek) q = q.eq('term', currentWeek.term).eq('week', currentWeek.week);
+    if (week) q = q.eq('term', week.term).eq('week', week.week);
     if (status) q = q.eq('status', status);
     const { count } = await q;
     return count || 0;
@@ -147,10 +159,11 @@ async function getStats(req, res, user) {
 
   const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
 
-  const total = await countWhere();
-  const byStatus = await Promise.all((statusRows || []).map(async r => ({ label: r.value, count: await countWhere(r.value) })));
+  const total = currentWeek ? await countWhere(null, currentWeek) : 0;
+  const totalPreviousWeek = previousWeek ? await countWhere(null, previousWeek) : 0;
+  const byStatus = await Promise.all((statusRows || []).map(async r => ({ label: r.value, count: await countWhere(r.value, currentWeek) })));
 
-  return ok(res, { currentWeek, total, byStatus });
+  return ok(res, { currentWeek, total, totalPreviousWeek, byStatus });
 }
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ ---------------- */

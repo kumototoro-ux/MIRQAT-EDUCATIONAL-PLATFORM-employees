@@ -136,22 +136,20 @@
 }
 
 .card {
-  background: var(--tone-tint, #f1f4f2);
-  border-radius: 16px;
-  padding: 22px 24px 20px;
+  background: var(--tone-bg, var(--primary));
+  border-radius: 20px;
+  padding: 20px 22px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(30,42,36,0.06);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  color: #fff;
+  min-height: 96px;
 }
 
-.card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(30,42,36,0.09); }
-
-.card[data-tone="primary"] { --tone-tint: #e8f0ec; --tone-color: var(--primary); }
-.card[data-tone="gold"]    { --tone-tint: #f5eee0; --tone-color: var(--gold); }
-.card[data-tone="warn"]    { --tone-tint: #f5e6e3; --tone-color: var(--warn); }
-.card[data-tone="info"]    { --tone-tint: #e5eef0; --tone-color: var(--info); }
-.card[data-tone="muted"]   { --tone-tint: #ececea; --tone-color: var(--muted); }
+.card[data-tone="primary"] { --tone-bg: linear-gradient(135deg, #3a7d61, #234a39); }
+.card[data-tone="gold"]    { --tone-bg: linear-gradient(135deg, #2a2a28, #14100c); }
+.card[data-tone="warn"]    { --tone-bg: linear-gradient(135deg, #c14b3d, #7a2a20); }
+.card[data-tone="info"]    { --tone-bg: linear-gradient(135deg, #3d7f94, #22485a); }
+.card[data-tone="muted"]   { --tone-bg: linear-gradient(135deg, #6b7168, #3c3f39); }
 
 .card::before {
   content: '●';
@@ -160,15 +158,13 @@
   justify-content: center;
   position: absolute;
   top: 16px; left: 16px;
-  width: 38px; height: 38px;
-  border-radius: 11px;
-  background: var(--tone-color, var(--primary));
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
   color: #fff;
-  font-size: 15px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+  font-size: 13px;
 }
 
-/* أيقونات مختلفة حسب دلالة النغمة — بدون أي جافاسكربت إضافي */
 .card[data-tone="primary"]::before { content: '✓'; font-weight: bold; }
 .card[data-tone="gold"]::before    { content: '★'; }
 .card[data-tone="warn"]::before    { content: '!'; font-weight: bold; }
@@ -176,24 +172,40 @@
 .card[data-tone="muted"]::before   { content: '≡'; }
 
 .card .card-value {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
-  color: var(--ink);
+  color: #fff;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  margin-top: 46px;
+  margin-top: 40px;
 }
 
 .card .card-label {
-  font-size: 12.5px;
-  color: var(--muted);
-  margin-top: 5px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  margin-top: 4px;
   font-weight: 600;
 }
 
+/* شارة اتجاه اختيارية (تُضاف من الجافاسكربت فقط عند وجود مقارنة فعلية) */
+.card-trend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.16);
+  color: #fff;
+}
+.card-trend.up::before { content: '↑ '; }
+.card-trend.down::before { content: '↓ '; }
+.card-trend.down { background: rgba(255,255,255,0.12); }
+
 .card.skeleton {
   height: 110px;
-  background: linear-gradient(90deg, #f0efe9 25%, #f7f6f2 50%, #f0efe9 75%);
+  background: linear-gradient(90deg, #e5e3dc 25%, #efeee8 50%, #e5e3dc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
 }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | التحضير والغياب</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=4">
+<link rel="stylesheet" href="/css/shell.css?v=5">
 <link rel="stylesheet" href="/css/components.css?v=7">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
@@ -45,22 +45,7 @@
 
         <!-- ============ تسجيل تحضير ============ -->
         <section class="tab-panel" id="panel-record">
-          <div class="toolbar">
-            <select id="f_branch"></select>
-            <select id="f_stages"></select>
-            <select id="f_grades"></select>
-            <select id="f_sections"></select>
-            <select id="f_subject"></select>
-            <select id="f_term"></select>
-            <select id="f_week" disabled style="max-width:150px;"><option>—</option></select>
-            <select id="f_day">
-              <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option>
-              <option value="الثلاثاء">الثلاثاء</option><option value="الأربعاء">الأربعاء</option>
-              <option value="الخميس">الخميس</option>
-            </select>
-            <input type="text" id="f_period" placeholder="الحصة" style="max-width:90px">
-            <button class="btn btn-primary" id="loadRosterBtn">عرض الشعبة</button>
-          </div>
+          <button class="btn btn-primary" id="openRecordBtn">+ إضافة تسجيل تحضير جديد</button>
           <p id="calendarHint" class="overview-hint" style="display:none;"></p>
 
           <div class="table-wrap" id="rosterWrap" style="display:none">
@@ -75,6 +60,45 @@
             <p class="form-error" id="rosterError"></p>
           </div>
         </section>
+
+        <!-- نافذة بدء تسجيل تحضير جديد -->
+        <div class="modal-overlay" id="recordModal" hidden>
+          <div class="modal" style="max-width:520px">
+            <div class="modal-header"><h2>تسجيل تحضير جديد</h2><button class="modal-close" id="closeRecordModal">✕</button></div>
+            <div class="modal-body">
+              <form id="recordForm">
+                <div class="form-row">
+                  <div class="form-group"><label>الفرع</label><select id="f_branch"></select></div>
+                  <div class="form-group"><label>المرحلة</label><select id="f_stages"></select></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>الصف</label><select id="f_grades"></select></div>
+                  <div class="form-group"><label>الشعبة</label><select id="f_sections"></select></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>المادة</label><select id="f_subject"></select></div>
+                  <div class="form-group"><label>الحصة</label><input type="text" id="f_period" placeholder="مثال: 2"></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>اليوم</label>
+                    <select id="f_day">
+                      <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option>
+                      <option value="الثلاثاء">الثلاثاء</option><option value="الأربعاء">الأربعاء</option>
+                      <option value="الخميس">الخميس</option>
+                    </select>
+                  </div>
+                  <div class="form-group"><label>الترم</label><select id="f_term"></select></div>
+                </div>
+                <div class="form-group"><label>الأسبوع (من التقويم الدراسي)</label><select id="f_week" disabled><option>—</option></select></div>
+                <p class="form-error" id="recordFormError"></p>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" form="recordForm" class="btn btn-primary" id="recordNextBtn">التالي: عرض الشعبة</button>
+              <button type="button" class="btn btn-outline" id="cancelRecordBtn">إلغاء</button>
+            </div>
+          </div>
+        </div>
 
         <!-- ============ سجل التحضير ============ -->
         <section class="tab-panel" id="panel-log" hidden>
@@ -138,7 +162,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=6"></script>
-  <script src="/js/attendance.js?v=5"></script>
+  <script src="/js/shell.js?v=7"></script>
+  <script src="/js/attendance.js?v=6"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | رصد الدرجات</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=4">
+<link rel="stylesheet" href="/css/shell.css?v=5">
 <link rel="stylesheet" href="/css/components.css?v=7">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
@@ -31,35 +31,46 @@
       <main class="content">
         <h1 class="page-title">رصد الدرجات</h1>
 
-        <div class="cards-grid" id="statsCards">
-          <div class="card skeleton"></div>
-          <div class="card skeleton"></div>
-        </div>
-        <div class="chart-card" id="evalChartCard" style="display:none;">
-          <h3>توزيع الرصد حسب نوع التقييم (هذا الأسبوع)</h3>
-          <canvas id="evalChart"></canvas>
+        <div class="tabs" id="mainTabs">
+          <button class="tab-btn active" data-main="stats">الإحصائيات العامة</button>
+          <button class="tab-btn" data-main="grading">الرصد</button>
         </div>
 
-        <!-- أدمن فقط: اختيار الفرع ثم المعلم -->
-        <div class="toolbar" id="adminPicker" style="display:none;">
-          <select id="admin_branch"><option value="">اختر الفرع</option></select>
-          <select id="admin_teacher" disabled><option value="">اختر الفرع أولًا</option></select>
-        </div>
-        <p id="adminSelectedTeacher" style="color:var(--primary); font-size:13px; display:none;"></p>
+        <!-- ============ تبويب رئيسي: الإحصائيات العامة ============ -->
+        <section id="mainPanel-stats">
+          <div class="cards-grid" id="statsCards">
+            <div class="card skeleton"></div>
+            <div class="card skeleton"></div>
+          </div>
+          <div class="chart-card" id="evalChartCard" style="display:none;">
+            <h3>توزيع الرصد حسب نوع التقييم (هذا الأسبوع)</h3>
+            <canvas id="evalChart"></canvas>
+          </div>
+        </section>
 
-        <!-- تبويبات المواد (تُبنى ديناميكيًا) -->
-        <div class="tabs" id="subjectTabs"></div>
+        <!-- ============ تبويب رئيسي: الرصد ============ -->
+        <section id="mainPanel-grading" hidden>
+          <!-- أدمن فقط: اختيار الفرع ثم المعلم -->
+          <div class="toolbar" id="adminPicker" style="display:none;">
+            <select id="admin_branch"><option value="">اختر الفرع</option></select>
+            <select id="admin_teacher" disabled><option value="">اختر الفرع أولًا</option></select>
+          </div>
+          <p id="adminSelectedTeacher" style="color:var(--primary); font-size:13px; display:none;"></p>
 
-        <!-- تبويبات فرعية -->
-        <div class="tabs" id="subTabs" style="display:none;">
-          <button class="sub-tab-btn active" data-sub="fromTask">رصد من تكليف</button>
-          <button class="sub-tab-btn" data-sub="manual">رصد يدوي</button>
-          <button class="sub-tab-btn" data-sub="participation">مشاركة وتفاعل فوري</button>
-          <button class="sub-tab-btn" data-sub="log">سجل الرصد</button>
-          <button class="sub-tab-btn" data-sub="finished">آخر أسبوع منتهٍ</button>
-        </div>
+          <!-- تبويبات المواد (تُبنى ديناميكيًا) -->
+          <div class="tabs" id="subjectTabs"></div>
 
-        <div id="subjectContent"></div>
+          <!-- تبويبات فرعية -->
+          <div class="tabs sub" id="subTabs" style="display:none;">
+            <button class="sub-tab-btn active" data-sub="fromTask">رصد من تكليف</button>
+            <button class="sub-tab-btn" data-sub="manual">رصد يدوي</button>
+            <button class="sub-tab-btn" data-sub="participation">مشاركة وتفاعل فوري</button>
+            <button class="sub-tab-btn" data-sub="log">سجل الرصد</button>
+            <button class="sub-tab-btn" data-sub="finished">آخر أسبوع منتهٍ</button>
+          </div>
+
+          <div id="subjectContent"></div>
+        </section>
       </main>
     </div>
   </div>
@@ -162,7 +173,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=6"></script>
-  <script src="/js/grading.js?v=6"></script>
+  <script src="/js/shell.js?v=7"></script>
+  <script src="/js/grading.js?v=7"></script>
 </body>
 </html>

@@ -160,11 +160,23 @@ async function getStats(req, res, user) {
   const today = new Date().toISOString().slice(0, 10);
   const { data: currentWeek } = await supabase
     .from('school_calendar')
-    .select('term, week')
+    .select('term, week, week_start_date')
     .lte('week_start_date', today)
     .gte('week_end_date', today)
     .limit(1)
     .maybeSingle();
+
+  let previousWeek = null;
+  if (currentWeek) {
+    const { data } = await supabase
+      .from('school_calendar')
+      .select('term, week')
+      .lt('week_start_date', currentWeek.week_start_date)
+      .order('week_start_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    previousWeek = data;
+  }
 
   const countWhere = async (extra = {}) => {
     let q = supabase.from('daily_follow_up').select('*', { count: 'exact', head: true });
@@ -176,6 +188,7 @@ async function getStats(req, res, user) {
 
   const totalAllTime = await countWhere();
   const totalThisWeek = currentWeek ? await countWhere({ term: currentWeek.term, week: currentWeek.week }) : 0;
+  const totalPreviousWeek = previousWeek ? await countWhere({ term: previousWeek.term, week: previousWeek.week }) : 0;
 
   const { data: evalRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'continuous_eval_types');
   const byEvalType = await Promise.all(
@@ -185,7 +198,7 @@ async function getStats(req, res, user) {
     }))
   );
 
-  return ok(res, { currentWeek, totalAllTime, totalThisWeek, byEvalType: byEvalType.filter(e => e.count > 0) });
+  return ok(res, { currentWeek, totalAllTime, totalThisWeek, totalPreviousWeek, byEvalType: byEvalType.filter(e => e.count > 0) });
 }
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ لمادة معيّنة ---------------- */

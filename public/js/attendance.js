@@ -38,7 +38,17 @@ async function init() {
 
   setupTabs();
 
-  document.getElementById('loadRosterBtn').addEventListener('click', loadRoster);
+  document.getElementById('openRecordBtn').addEventListener('click', () => {
+    document.getElementById('recordFormError').textContent = '';
+    document.getElementById('recordModal').hidden = false;
+  });
+  document.getElementById('closeRecordModal').addEventListener('click', () => { document.getElementById('recordModal').hidden = true; });
+  document.getElementById('cancelRecordBtn').addEventListener('click', () => { document.getElementById('recordModal').hidden = true; });
+  document.getElementById('recordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const ok = await loadRoster();
+    if (ok) document.getElementById('recordModal').hidden = true;
+  });
   document.getElementById('saveRosterBtn').addEventListener('click', saveRoster);
 
   document.getElementById('filterLogBtn').addEventListener('click', () => loadLog(1));
@@ -142,11 +152,21 @@ async function loadStats() {
     const counts = {};
     stats.byStatus.forEach(s => { counts[s.label] = s.count; });
 
-    document.getElementById('statsCards').innerHTML = [
-      { label: 'سجلات هذا الأسبوع', value: stats.total, tone: 'primary' },
-      { label: 'حاضر', value: counts['حاضر'] || 0, tone: 'info' },
-      { label: 'غائب', value: counts['غائب'] || 0, tone: 'warn' }
-    ].map(c => `<div class="card" data-tone="${c.tone}"><div class="card-value">${c.value}</div><div class="card-label">${c.label}</div></div>`).join('');
+    document.getElementById('statsCards').innerHTML = `
+      <div class="card" data-tone="primary">
+        <div class="card-value">${stats.total}</div>
+        <div class="card-label">سجلات هذا الأسبوع</div>
+        ${mirqatTrendBadge(stats.total, stats.totalPreviousWeek)}
+      </div>
+      <div class="card" data-tone="info">
+        <div class="card-value">${counts['حاضر'] || 0}</div>
+        <div class="card-label">حاضر</div>
+      </div>
+      <div class="card" data-tone="warn">
+        <div class="card-value">${counts['غائب'] || 0}</div>
+        <div class="card-label">غائب</div>
+      </div>
+    `;
 
     if (stats.total > 0) {
       document.getElementById('statusChartCard').style.display = 'block';
@@ -170,15 +190,17 @@ async function loadStats() {
 /* ---------------- تسجيل تحضير ---------------- */
 async function loadRoster() {
   const f = getRecordFilters();
-  if (!f.branch || !f.grades) { alert('اختر الفرع والصف على الأقل'); return; }
+  const errorEl = document.getElementById('recordFormError');
+  errorEl.textContent = '';
+  if (!f.branch || !f.grades) { errorEl.textContent = 'اختر الفرع والصف على الأقل'; return false; }
 
   try {
     currentRoster = await mirqatApi('attendance', 'getRoster', {
       filters: { branch: f.branch, stages: f.stages || undefined, grades: f.grades, sections: f.sections || undefined }
     }, { cache: false });
   } catch (e) {
-    alert('تعذّر تحميل الطلاب: ' + e.message);
-    return;
+    errorEl.textContent = 'تعذّر تحميل الطلاب: ' + e.message;
+    return false;
   }
 
   const statuses = allLists.attendance_statuses || ['حاضر', 'غائب', 'متأخر', 'مستأذن'];
@@ -209,6 +231,7 @@ async function loadRoster() {
 
   document.getElementById('rosterWrap').style.display = 'block';
   document.getElementById('rosterActions').style.display = currentRoster.length ? 'block' : 'none';
+  return true;
 }
 
 /** يحدد نفس الحالة لكل الطلاب دفعة وحدة (تحضير سريع) */

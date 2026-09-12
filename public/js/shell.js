@@ -173,6 +173,16 @@ function mirqatDrawerField(label, value) {
   return `<div class="drawer-field"><span class="label">${label}</span><span class="value">${value ?? '—'}</span></div>`;
 }
 
+/** يبني شارة اتجاه (↑/↓ + نسبة٪) بالمقارنة مع القيمة السابقة — يرجّع نص فارغ إن لم توجد قيمة سابقة للمقارنة */
+function mirqatTrendBadge(current, previous) {
+  if (previous === null || previous === undefined || previous === 0) return '';
+  const diff = current - previous;
+  const pct = Math.round((diff / previous) * 100);
+  if (pct === 0) return '<div class="card-trend">= 0%</div>';
+  const dir = pct > 0 ? 'up' : 'down';
+  return `<div class="card-trend ${dir}">${Math.abs(pct)}%</div>`;
+}
+
 /** بلَجن Chart.js يكتب رقمًا كبيرًا بمنتصف أي رسم دونات (دائري مفرّغ) */
 function mirqatDonutCenterPlugin(text) {
   return {
