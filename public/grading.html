@@ -50,6 +50,37 @@
             <h3>توزيع الرصد حسب نوع التقييم (هذا الأسبوع)</h3>
             <canvas id="evalChart"></canvas>
           </div>
+
+          <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">نظرة عامة على مستوى أداء كل فرع</h2>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+            <div class="chart-card" id="branchAvgCard" style="display:none;">
+              <h3>متوسط نسبة الأداء لكل فرع (٪)</h3>
+              <canvas id="branchAvgChart"></canvas>
+            </div>
+            <div class="chart-card" id="branchTotalCard" style="display:none;">
+              <h3>نسبة عدد الرصد من إجمالي كل الفروع</h3>
+              <canvas id="branchTotalChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card" id="branchTrendCard" style="display:none; margin:16px 0;">
+            <h3>اتجاه الرصد لكل فرع عبر الأسابيع (آخر 12 أسبوع)</h3>
+            <canvas id="branchTrendChart"></canvas>
+          </div>
+
+          <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">إحصائيات مخصصة بحسب فلتر تحدده</h2>
+          <div class="toolbar">
+            <select id="cf_branch"><option value="">كل الفروع</option></select>
+            <select id="cf_term"><option value="">كل الترمات</option></select>
+            <select id="cf_week"><option value="">كل الأسابيع</option></select>
+            <select id="cf_subject"><option value="">كل المواد</option></select>
+            <select id="cf_grades"><option value="">كل الصفوف</option></select>
+            <button class="btn btn-primary" id="applyCustomFilterBtn">تطبيق</button>
+          </div>
+          <div class="cards-grid" id="customStatsCards" style="display:none;"></div>
+          <div class="chart-card" id="customBarCard" style="display:none; margin-top:16px;">
+            <h3>توزيع الرصد حسب نوع التقييم لهذا الفلتر</h3>
+            <canvas id="customBarChart"></canvas>
+          </div>
         </section>
 
         <!-- ============ تبويب رئيسي: الرصد ============ -->
@@ -178,6 +209,6 @@
   </div>
 
   <script src="/js/shell.js?v=7"></script>
-  <script src="/js/grading.js?v=8"></script>
+  <script src="/js/grading.js?v=9"></script>
 </body>
 </html>

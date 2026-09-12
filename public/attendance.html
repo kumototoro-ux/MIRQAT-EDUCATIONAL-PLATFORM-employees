@@ -53,6 +53,48 @@
               <canvas id="statusBarChart"></canvas>
             </div>
           </div>
+
+          <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">نظرة عامة على الفروع (من أول أسبوع لآخر أسبوع حالي)</h2>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+            <div class="chart-card" id="branchCompareCard" style="display:none;">
+              <h3>مقارنة الحالات بين الفروع</h3>
+              <canvas id="branchCompareChart"></canvas>
+            </div>
+            <div class="chart-card" id="branchPctCard" style="display:none;">
+              <h3>نسبة كل حالة من إجمالي كل فرع</h3>
+              <canvas id="branchPctChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card" id="branchTrendCard" style="display:none; margin:16px 0;">
+            <h3>اتجاه كل فرع عبر الأسابيع (آخر 12 أسبوع)</h3>
+            <canvas id="branchTrendChart"></canvas>
+          </div>
+
+          <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">إحصائيات مخصصة بحسب فلتر تحدده</h2>
+          <div class="toolbar">
+            <select id="cf_branch"><option value="">كل الفروع</option></select>
+            <select id="cf_term"><option value="">كل الترمات</option></select>
+            <select id="cf_week"><option value="">كل الأسابيع</option></select>
+            <select id="cf_day">
+              <option value="">كل الأيام</option>
+              <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option>
+              <option value="الثلاثاء">الثلاثاء</option><option value="الأربعاء">الأربعاء</option>
+              <option value="الخميس">الخميس</option>
+            </select>
+            <select id="cf_grades"><option value="">كل الصفوف</option></select>
+            <button class="btn btn-primary" id="applyCustomFilterBtn">تطبيق</button>
+          </div>
+          <div class="cards-grid" id="customStatsCards" style="display:none;"></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+            <div class="chart-card" id="customDonutCard" style="display:none;">
+              <h3>توزيع الحالات لهذا الفلتر</h3>
+              <canvas id="customDonutChart"></canvas>
+            </div>
+            <div class="chart-card" id="customBarCard" style="display:none;">
+              <h3>عدد كل حالة لهذا الفلتر</h3>
+              <canvas id="customBarChart"></canvas>
+            </div>
+          </div>
         </section>
 
         <!-- ============ تبويب رئيسي: التحضير ============ -->
@@ -184,6 +226,6 @@
   </div>
 
   <script src="/js/shell.js?v=7"></script>
-  <script src="/js/attendance.js?v=7"></script>
+  <script src="/js/attendance.js?v=8"></script>
 </body>
 </html>

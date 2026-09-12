@@ -5,6 +5,7 @@ import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
 import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
+import { resolveCurrentWeek, getWeeksUpToToday } from '../lib/academicWeek.js';
 
 /**
  * كل شيء هنا مبني حول "المادة" — المعلم لا يرى ولا يرصد إلا لمواده المسندة
@@ -38,6 +39,10 @@ export default async function handler(req, res) {
         return await getFinishedWeekRecords(req, res, user, body);
       case 'getStats':
         return await getStats(req, res, user, body);
+      case 'getOverview':
+        return await getOverview(req, res, user);
+      case 'getFilteredStats':
+        return await getFilteredStats(req, res, user, body);
       case 'updateRosterRecords':
         return await updateRosterRecords(req, res, user, body);
       case 'deleteRosterRecords':
@@ -157,14 +162,7 @@ async function getGradingRecords(req, res, user, { filters = {}, page, pageSize 
 
 /* ---------------- إحصائيات سريعة (عدّ فقط) — تظهر فورًا بلا اختيار معلم/مادة ---------------- */
 async function getStats(req, res, user) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: currentWeek } = await supabase
-    .from('school_calendar')
-    .select('term, week, week_start_date')
-    .lte('week_start_date', today)
-    .gte('week_end_date', today)
-    .limit(1)
-    .maybeSingle();
+  const currentWeek = await resolveCurrentWeek();
 
   let previousWeek = null;
   if (currentWeek) {
@@ -198,21 +196,68 @@ async function getStats(req, res, user) {
     }))
   );
 
-  // اتجاه آخر 6 أسابيع (لرسم بياني خطي) — من التقويم الدراسي الفعلي
-  const { data: last6Weeks } = await supabase
-    .from('school_calendar')
-    .select('term, week, week_start_date')
-    .lte('week_start_date', today)
-    .order('week_start_date', { ascending: false })
-    .limit(6);
-
-  const weeklyTrend = last6Weeks
-    ? (await Promise.all(
-        last6Weeks.map(async w => ({ label: w.week, count: await countWhere({ term: w.term, week: w.week }) }))
-      )).reverse()
-    : [];
+  const recentWeeks = await getWeeksUpToToday(6);
+  const weeklyTrend = await Promise.all(recentWeeks.map(async w => ({ label: w.week, count: await countWhere({ term: w.term, week: w.week }) })));
 
   return ok(res, { currentWeek, totalAllTime, totalThisWeek, totalPreviousWeek, byEvalType: byEvalType.filter(e => e.count > 0), weeklyTrend });
+}
+
+/* ---------------- نظرة عامة على كل الفروع: متوسط الأداء الفعلي (نسبة الدرجات المكتسبة) ---------------- */
+async function getOverview(req, res, user) {
+  const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
+  const branches = (branchRows || []).map(r => r.value);
+
+  const perBranch = await Promise.all(branches.map(async branch => {
+    let q = supabase.from('daily_follow_up').select('earned_score, max_score').eq('branch', branch).limit(5000);
+    q = scopeToOwner(q, user);
+    const { data: rows } = await q;
+
+    const valid = (rows || []).filter(r => r.max_score > 0);
+    const avgPct = valid.length
+      ? Math.round((valid.reduce((sum, r) => sum + (r.earned_score / r.max_score) * 100, 0) / valid.length) * 10) / 10
+      : 0;
+
+    return { branch, total: (rows || []).length, avgPct };
+  }));
+
+  const weeks = await getWeeksUpToToday(12);
+  const trendByBranch = await Promise.all(branches.map(async branch => ({
+    branch,
+    series: await Promise.all(weeks.map(async w => {
+      let q = supabase.from('daily_follow_up').select('*', { count: 'exact', head: true }).eq('branch', branch).eq('term', w.term).eq('week', w.week);
+      q = scopeToOwner(q, user);
+      const { count } = await q;
+      return { label: w.week, count: count || 0 };
+    }))
+  })));
+
+  return ok(res, { branches, perBranch, trendByBranch });
+}
+
+/* ---------------- إحصائيات مخصصة حسب فلتر محدد ---------------- */
+async function getFilteredStats(req, res, user, { branch, term, week, subject, grades } = {}) {
+  let q = supabase.from('daily_follow_up').select('earned_score, max_score, eval_type');
+  q = scopeToOwner(q, user);
+  if (branch) q = q.eq('branch', branch);
+  if (term) q = q.eq('term', term);
+  if (week) q = q.eq('week', week);
+  if (subject) q = q.eq('subject', subject);
+  if (grades) q = q.eq('grades', grades);
+  q = q.limit(5000);
+
+  const { data: rows, error } = await q;
+  if (error) return fail(res, 'تعذّر جلب الإحصائيات', 500);
+
+  const valid = (rows || []).filter(r => r.max_score > 0);
+  const avgPct = valid.length
+    ? Math.round((valid.reduce((sum, r) => sum + (r.earned_score / r.max_score) * 100, 0) / valid.length) * 10) / 10
+    : 0;
+
+  const byEvalTypeMap = {};
+  (rows || []).forEach(r => { byEvalTypeMap[r.eval_type] = (byEvalTypeMap[r.eval_type] || 0) + 1; });
+  const byEvalType = Object.entries(byEvalTypeMap).map(([label, count]) => ({ label, count }));
+
+  return ok(res, { total: (rows || []).length, avgPct, byEvalType });
 }
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ لمادة معيّنة ---------------- */

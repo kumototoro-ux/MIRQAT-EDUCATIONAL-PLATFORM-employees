@@ -84,6 +84,8 @@ async function init() {
 
   populateWeekOptions();
   loadStats();
+  loadOverview();
+  setupCustomFilters();
 }
 
 function fillSelect(id, options = [], placeholder = null) {
@@ -233,6 +235,150 @@ async function loadStats() {
   }
 }
 
+/* ---------------- نظرة عامة على الفروع ---------------- */
+let branchCompareChartInstance = null;
+let branchPctChartInstance = null;
+let branchTrendChartInstance = null;
+
+async function loadOverview() {
+  try {
+    const data = await mirqatApi('attendance', 'getOverview', {});
+    if (!data.branches.length) return;
+
+    const palette = ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F'];
+
+    // مقارنة الحالات بين الفروع (أعمدة مجمّعة)
+    document.getElementById('branchCompareCard').style.display = 'block';
+    if (branchCompareChartInstance) branchCompareChartInstance.destroy();
+    branchCompareChartInstance = new Chart(document.getElementById('branchCompareChart'), {
+      type: 'bar',
+      data: {
+        labels: data.statuses,
+        datasets: data.perBranch.map((b, i) => ({
+          label: b.branch,
+          data: data.statuses.map(s => b.byStatus.find(x => x.label === s)?.count || 0),
+          backgroundColor: palette[i % palette.length],
+          borderRadius: 6
+        }))
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+
+    // نسبة كل حالة من إجمالي كل فرع (عمود مكدّس بالنسبة المئوية)
+    document.getElementById('branchPctCard').style.display = 'block';
+    if (branchPctChartInstance) branchPctChartInstance.destroy();
+    branchPctChartInstance = new Chart(document.getElementById('branchPctChart'), {
+      type: 'bar',
+      data: {
+        labels: data.perBranch.map(b => b.branch),
+        datasets: data.statuses.map((s, i) => ({
+          label: s,
+          data: data.perBranch.map(b => b.byStatus.find(x => x.label === s)?.pct || 0),
+          backgroundColor: palette[i % palette.length]
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } } },
+        scales: { x: { stacked: true }, y: { stacked: true, max: 100, ticks: { callback: v => v + '%' } } }
+      }
+    });
+
+    // اتجاه كل فرع عبر الأسابيع (خطوط متعددة)
+    document.getElementById('branchTrendCard').style.display = 'block';
+    if (branchTrendChartInstance) branchTrendChartInstance.destroy();
+    const labels = data.trendByBranch[0]?.series.map(s => s.label) || [];
+    branchTrendChartInstance = new Chart(document.getElementById('branchTrendChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: data.trendByBranch.map((b, i) => ({
+          label: b.branch,
+          data: b.series.map(s => s.count),
+          borderColor: palette[i % palette.length],
+          backgroundColor: palette[i % palette.length] + '22',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3
+        }))
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  } catch (e) { /* صامت — قسم ثانوي */ }
+}
+
+/* ---------------- إحصائيات مخصصة بفلتر ---------------- */
+let customDonutInstance = null;
+let customBarInstance = null;
+
+function setupCustomFilters() {
+  fillSelect('cf_branch', allLists.branches, 'كل الفروع');
+  fillSelect('cf_term', allLists.terms, 'كل الترمات');
+  fillSelect('cf_grades', allLists.grades, 'كل الصفوف');
+
+  document.getElementById('cf_term').addEventListener('change', async () => {
+    const term = document.getElementById('cf_term').value;
+    const weekSelect = document.getElementById('cf_week');
+    if (!term) { weekSelect.innerHTML = '<option value="">كل الأسابيع</option>'; return; }
+    weekSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
+    const weeks = await mirqatGetWeeksForTerm(term);
+    weekSelect.innerHTML = '<option value="">كل الأسابيع</option>' + weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+  });
+
+  document.getElementById('applyCustomFilterBtn').addEventListener('click', applyCustomFilter);
+}
+
+async function applyCustomFilter() {
+  const filters = {
+    branch: document.getElementById('cf_branch').value || undefined,
+    term: document.getElementById('cf_term').value || undefined,
+    week: document.getElementById('cf_week').value || undefined,
+    day: document.getElementById('cf_day').value || undefined,
+    grades: document.getElementById('cf_grades').value || undefined
+  };
+
+  try {
+    const result = await mirqatApi('attendance', 'getFilteredStats', filters);
+    const counts = {};
+    result.byStatus.forEach(s => { counts[s.label] = s.count; });
+
+    document.getElementById('customStatsCards').style.display = 'grid';
+    document.getElementById('customStatsCards').innerHTML = `
+      <div class="card" data-tone="primary"><div class="card-value">${result.total}</div><div class="card-label">إجمالي السجلات المطابقة</div></div>
+      <div class="card" data-tone="info"><div class="card-value">${counts['حاضر'] || 0}</div><div class="card-label">حاضر</div></div>
+      <div class="card" data-tone="warn"><div class="card-value">${counts['غائب'] || 0}</div><div class="card-label">غائب</div></div>
+    `;
+
+    if (result.total > 0) {
+      document.getElementById('customDonutCard').style.display = 'block';
+      if (customDonutInstance) customDonutInstance.destroy();
+      customDonutInstance = new Chart(document.getElementById('customDonutChart'), {
+        type: 'pie',
+        data: {
+          labels: result.byStatus.map(s => s.label),
+          datasets: [{ data: result.byStatus.map(s => s.count), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'] }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      document.getElementById('customBarCard').style.display = 'block';
+      if (customBarInstance) customBarInstance.destroy();
+      customBarInstance = new Chart(document.getElementById('customBarChart'), {
+        type: 'bar',
+        data: {
+          labels: result.byStatus.map(s => s.label),
+          datasets: [{ data: result.byStatus.map(s => s.count), backgroundColor: '#3D6B7A', borderRadius: 8 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    } else {
+      document.getElementById('customDonutCard').style.display = 'none';
+      document.getElementById('customBarCard').style.display = 'none';
+    }
+  } catch (e) {
+    alert('تعذّر تطبيق الفلتر: ' + e.message);
+  }
+}
 /* ---------------- تسجيل تحضير ---------------- */
 async function loadRoster() {
   const f = getRecordFilters();

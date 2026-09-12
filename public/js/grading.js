@@ -74,6 +74,130 @@ async function init() {
   });
 
   loadStats();
+  loadOverview();
+  setupCustomFilters();
+}
+
+/* ---------------- نظرة عامة على أداء الفروع ---------------- */
+let branchAvgChartInstance = null;
+let branchTotalChartInstance = null;
+let branchTrendChartInstance = null;
+
+async function loadOverview() {
+  try {
+    const data = await mirqatApi('grading', 'getOverview', {});
+    if (!data.branches.length) return;
+
+    const palette = ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F'];
+
+    document.getElementById('branchAvgCard').style.display = 'block';
+    if (branchAvgChartInstance) branchAvgChartInstance.destroy();
+    branchAvgChartInstance = new Chart(document.getElementById('branchAvgChart'), {
+      type: 'bar',
+      data: {
+        labels: data.perBranch.map(b => b.branch),
+        datasets: [{
+          data: data.perBranch.map(b => b.avgPct),
+          backgroundColor: data.perBranch.map((_, i) => palette[i % palette.length]),
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } },
+        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }
+      }
+    });
+
+    document.getElementById('branchTotalCard').style.display = 'block';
+    if (branchTotalChartInstance) branchTotalChartInstance.destroy();
+    branchTotalChartInstance = new Chart(document.getElementById('branchTotalChart'), {
+      type: 'pie',
+      data: {
+        labels: data.perBranch.map(b => b.branch),
+        datasets: [{ data: data.perBranch.map(b => b.total), backgroundColor: palette }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    document.getElementById('branchTrendCard').style.display = 'block';
+    if (branchTrendChartInstance) branchTrendChartInstance.destroy();
+    const labels = data.trendByBranch[0]?.series.map(s => s.label) || [];
+    branchTrendChartInstance = new Chart(document.getElementById('branchTrendChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: data.trendByBranch.map((b, i) => ({
+          label: b.branch,
+          data: b.series.map(s => s.count),
+          borderColor: palette[i % palette.length],
+          backgroundColor: palette[i % palette.length] + '22',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3
+        }))
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  } catch (e) { /* صامت — قسم ثانوي */ }
+}
+
+/* ---------------- إحصائيات مخصصة بفلتر ---------------- */
+let customBarChartInstance = null;
+
+function setupCustomFilters() {
+  fillSelect('cf_branch', allLists.branches, 'كل الفروع');
+  fillSelect('cf_term', allLists.terms, 'كل الترمات');
+  fillSelect('cf_subject', allLists.subject, 'كل المواد');
+  fillSelect('cf_grades', allLists.grades, 'كل الصفوف');
+
+  document.getElementById('cf_term').addEventListener('change', async () => {
+    const term = document.getElementById('cf_term').value;
+    const weekSelect = document.getElementById('cf_week');
+    if (!term) { weekSelect.innerHTML = '<option value="">كل الأسابيع</option>'; return; }
+    weekSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
+    const weeks = await mirqatGetWeeksForTerm(term);
+    weekSelect.innerHTML = '<option value="">كل الأسابيع</option>' + weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+  });
+
+  document.getElementById('applyCustomFilterBtn').addEventListener('click', applyCustomFilter);
+}
+
+async function applyCustomFilter() {
+  const filters = {
+    branch: document.getElementById('cf_branch').value || undefined,
+    term: document.getElementById('cf_term').value || undefined,
+    week: document.getElementById('cf_week').value || undefined,
+    subject: document.getElementById('cf_subject').value || undefined,
+    grades: document.getElementById('cf_grades').value || undefined
+  };
+
+  try {
+    const result = await mirqatApi('grading', 'getFilteredStats', filters);
+
+    document.getElementById('customStatsCards').style.display = 'grid';
+    document.getElementById('customStatsCards').innerHTML = `
+      <div class="card" data-tone="primary"><div class="card-value">${result.total}</div><div class="card-label">إجمالي سجلات الرصد</div></div>
+      <div class="card" data-tone="gold"><div class="card-value">${result.avgPct}%</div><div class="card-label">متوسط نسبة الأداء</div></div>
+    `;
+
+    if (result.byEvalType.length) {
+      document.getElementById('customBarCard').style.display = 'block';
+      if (customBarChartInstance) customBarChartInstance.destroy();
+      customBarChartInstance = new Chart(document.getElementById('customBarChart'), {
+        type: 'bar',
+        data: {
+          labels: result.byEvalType.map(e => e.label),
+          datasets: [{ data: result.byEvalType.map(e => e.count), backgroundColor: '#A9813F', borderRadius: 8 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    } else {
+      document.getElementById('customBarCard').style.display = 'none';
+    }
+  } catch (e) {
+    alert('تعذّر تطبيق الفلتر: ' + e.message);
+  }
 }
 
 /* ---------------- إحصائيات فورية (تظهر قبل اختيار أي معلم أو مادة) ---------------- */

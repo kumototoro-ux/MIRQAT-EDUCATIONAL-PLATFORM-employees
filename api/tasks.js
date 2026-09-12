@@ -4,6 +4,7 @@ import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
 import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
+import { resolveCurrentWeek } from '../lib/academicWeek.js';
 
 /**
  * Actions — المهام والتكاليف والاختبارات (task_assignments):
@@ -65,12 +66,7 @@ function scopeToOwner(query, user, col = 'employee_id') {
 
 /** أسبوع التقويم الدراسي الحالي (اليوم بين بداية ونهاية الأسبوع) */
 async function getCurrentWeek(term) {
-  const today = new Date().toISOString().slice(0, 10);
-  let q = supabase.from('school_calendar').select('term, week, week_start_date, week_end_date')
-    .lte('week_start_date', today).gte('week_end_date', today).limit(1);
-  if (term) q = q.eq('term', term);
-  const { data } = await q.maybeSingle();
-  return data;
+  return await resolveCurrentWeek(term);
 }
 
 /* ================= المهام والتكاليف والاختبارات ================= */

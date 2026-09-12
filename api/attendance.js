@@ -5,6 +5,7 @@ import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
 import { applyPagination, paginatedResult } from '../lib/paginate.js';
 import { windowCutoffIso, EDIT_WINDOW_HOURS, DELETE_WINDOW_HOURS } from '../lib/timeWindow.js';
+import { resolveCurrentWeek, getWeeksUpToToday } from '../lib/academicWeek.js';
 
 /**
  * Actions:
@@ -35,6 +36,10 @@ export default async function handler(req, res) {
         return await getFinishedWeekRecords(req, res, user, body);
       case 'getStats':
         return await getStats(req, res, user, body);
+      case 'getOverview':
+        return await getOverview(req, res, user);
+      case 'getFilteredStats':
+        return await getFilteredStats(req, res, user, body);
       case 'updateAttendanceRecords':
         return await updateAttendanceRecords(req, res, user, body);
       case 'deleteAttendanceRecords':
@@ -127,14 +132,7 @@ async function getAttendanceRecords(req, res, user, { filters = {}, page, pageSi
 
 /* ---------------- إحصائيات سريعة (عدّ فقط — بلا جلب صفوف) للأسبوع الدراسي الحالي ---------------- */
 async function getStats(req, res, user) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: currentWeek } = await supabase
-    .from('school_calendar')
-    .select('term, week, week_start_date')
-    .lte('week_start_date', today)
-    .gte('week_end_date', today)
-    .limit(1)
-    .maybeSingle();
+  const currentWeek = await resolveCurrentWeek();
 
   let previousWeek = null;
   if (currentWeek) {
@@ -148,11 +146,12 @@ async function getStats(req, res, user) {
     previousWeek = data;
   }
 
-  const countWhere = async (status, week) => {
+  const countWhere = async (status, week, extra = {}) => {
     let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
     if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
     if (week) q = q.eq('term', week.term).eq('week', week.week);
     if (status) q = q.eq('status', status);
+    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
     const { count } = await q;
     return count || 0;
   };
@@ -163,22 +162,73 @@ async function getStats(req, res, user) {
   const totalPreviousWeek = previousWeek ? await countWhere(null, previousWeek) : 0;
   const byStatus = await Promise.all((statusRows || []).map(async r => ({ label: r.value, count: await countWhere(r.value, currentWeek) })));
 
-  // اتجاه آخر 6 أسابيع (لرسم بياني خطي) — من التقويم الدراسي الفعلي
-  const { data: last6Weeks } = await supabase
-    .from('school_calendar')
-    .select('term, week, week_start_date')
-    .lte('week_start_date', today)
-    .order('week_start_date', { ascending: false })
-    .limit(6);
-
-  const weeklyTrend = last6Weeks
-    ? (await Promise.all(
-        last6Weeks.map(async w => ({ label: w.week, count: await countWhere(null, w) }))
-      )).reverse()
-    : [];
+  const recentWeeks = await getWeeksUpToToday(6);
+  const weeklyTrend = await Promise.all(recentWeeks.map(async w => ({ label: w.week, count: await countWhere(null, w) })));
 
   return ok(res, { currentWeek, total, totalPreviousWeek, byStatus, weeklyTrend });
 }
+
+/* ---------------- نظرة عامة على كل الفروع (من أول أسبوع لآخر أسبوع حالي) ---------------- */
+async function getOverview(req, res, user) {
+  const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
+  const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
+  const branches = (branchRows || []).map(r => r.value);
+  const statuses = (statusRows || []).map(r => r.value);
+
+  const countWhere = async (extra = {}) => {
+    let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
+    if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
+    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
+    const { count } = await q;
+    return count || 0;
+  };
+
+  const perBranch = await Promise.all(branches.map(async branch => {
+    const total = await countWhere({ branch });
+    const byStatus = await Promise.all(statuses.map(async s => {
+      const count = await countWhere({ branch, status: s });
+      return { label: s, count, pct: total ? Math.round((count / total) * 1000) / 10 : 0 };
+    }));
+    return { branch, total, byStatus };
+  }));
+
+  const weeks = await getWeeksUpToToday(12);
+  const trendByBranch = await Promise.all(branches.map(async branch => ({
+    branch,
+    series: await Promise.all(weeks.map(async w => {
+      let q = supabase.from('attendance').select('*', { count: 'exact', head: true }).eq('branch', branch).eq('term', w.term).eq('week', w.week);
+      if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
+      const { count } = await q;
+      return { label: w.week, count: count || 0 };
+    }))
+  })));
+
+  return ok(res, { branches, statuses, perBranch, trendByBranch });
+}
+
+/* ---------------- إحصائيات مخصصة حسب فلتر محدد ---------------- */
+async function getFilteredStats(req, res, user, { branch, term, week, day, grades } = {}) {
+  const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
+  const statuses = (statusRows || []).map(r => r.value);
+
+  const countWhere = async (status) => {
+    let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
+    if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
+    if (branch) q = q.eq('branch', branch);
+    if (term) q = q.eq('term', term);
+    if (week) q = q.eq('week', week);
+    if (day) q = q.eq('day', day);
+    if (status) q = q.eq('status', status);
+    const { count } = await q;
+    return count || 0;
+  };
+
+  const total = await countWhere();
+  const byStatus = await Promise.all(statuses.map(async s => ({ label: s, count: await countWhere(s) })));
+
+  return ok(res, { total, byStatus });
+}
+
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ ---------------- */
 async function getFinishedWeekRecords(req, res, user, { term } = {}) {

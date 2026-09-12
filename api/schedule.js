@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/jwt.js';
 import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { applyEmployeeScope } from '../lib/scope.js';
+import { resolveCurrentWeek } from '../lib/academicWeek.js';
 
 /**
  * Actions:
@@ -105,18 +106,8 @@ async function getCalendarTerms(req, res) {
 }
 
 async function getCurrentTermInfo(req, res) {
-  const today = new Date().toISOString().slice(0, 10);
-
-  const { data, error } = await supabase
-    .from('school_calendar')
-    .select('term, period, week, week_start_date, week_end_date')
-    .lte('week_start_date', today)
-    .gte('week_end_date', today)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return fail(res, 'تعذّر تحديد الترم الحالي', 500);
-  if (!data) return ok(res, null); // لا يوجد أسبوع مطابق لتاريخ اليوم في التقويم
+  const data = await resolveCurrentWeek();
+  if (!data) return ok(res, null); // لا يوجد أي أسبوع في التقويم بعد
   return ok(res, data);
 }
 
