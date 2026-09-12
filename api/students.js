@@ -9,6 +9,8 @@ import { applyPagination, paginatedResult } from '../lib/paginate.js';
 /**
  * Actions:
  *  - list    { filters?, page?, pageSize? } → مُرقَّم (افتراضي 25، أقصى 100 بالصفحة)
+ *  - getStats {}                             → إحصائيات عد فقط (بدون جلب صفوف) لواجهة النظرة العامة
+ *  - getRecent { limit? }                    → آخر الطلاب المُضافين (افتراضي 10)
  *  - create  { data }            → أدمن فقط
  *  - update  { id, data }        → أدمن فقط
  *  - delete  { id }              → أدمن فقط (حذف ناعم)
@@ -25,6 +27,10 @@ export default async function handler(req, res) {
     switch (action) {
       case 'list':
         return await listStudents(req, res, user, body);
+      case 'getStats':
+        return await getStats(req, res, user);
+      case 'getRecent':
+        return await getRecent(req, res, user, body);
       case 'create':
         return await createStudent(req, res, user, body);
       case 'update':
@@ -62,7 +68,47 @@ async function listStudents(req, res, user, { filters = {}, page, pageSize } = {
   return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
-async function createStudent(req, res, user, { data } = {}) {
+/** إحصائيات عد فقط (head:true) — لا تجلب أي صف فعلي، رخيصة جدًا حتى مع ملايين السجلات */
+async function getStats(req, res, user) {
+  const countWhere = async (extra = {}) => {
+    let q = supabase.from('students').select('*', { count: 'exact', head: true }).is('deleted_at', null);
+    q = applyEmployeeScope(q, user);
+    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
+    const { count, error } = await q;
+    if (error) return 0;
+    return count || 0;
+  };
+
+  const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
+  const { data: gradeRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'grades');
+
+  const total = await countWhere();
+
+  const byBranch = await Promise.all(
+    (branchRows || []).map(async r => ({ label: r.value, count: await countWhere({ branch: r.value }) }))
+  );
+  const byGrade = await Promise.all(
+    (gradeRows || []).map(async r => ({ label: r.value, count: await countWhere({ grades: r.value }) }))
+  );
+
+  return ok(res, { total, byBranch, byGrade: byGrade.filter(g => g.count > 0) });
+}
+
+/** آخر الطلاب المُضافين — للعرض السريع بلا فلترة */
+async function getRecent(req, res, user, { limit } = {}) {
+  let query = supabase
+    .from('students')
+    .select('id, name_ar, branch, stages, grades, sections, created_at')
+    .is('deleted_at', null);
+  query = applyEmployeeScope(query, user);
+  query = query.order('created_at', { ascending: false }).limit(Math.min(50, limit || 10));
+
+  const { data, error } = await query;
+  if (error) return fail(res, 'تعذّر جلب آخر الطلاب', 500);
+  return ok(res, data);
+}
+
+
   if (!requireAdmin(user)) return fail(res, 'هذا الإجراء يتطلب صلاحية أدمن', 403);
   if (!data || !data.name_ar) return fail(res, 'اسم الطالب مطلوب', 400);
 
