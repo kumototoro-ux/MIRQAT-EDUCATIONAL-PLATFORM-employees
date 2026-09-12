@@ -3,7 +3,7 @@
   min-height: 100vh;
 }
 
-/* ---------- الشريط الجانبي (يمين — RTL) ---------- */
+/* ---------- الشريط الجانبي (ثابت دائمًا — يمين، RTL) ---------- */
 .sidebar {
   width: 248px;
   flex-shrink: 0;
@@ -11,7 +11,10 @@
   color: #fff;
   display: flex;
   flex-direction: column;
-  transition: margin-right 0.2s ease;
+  position: fixed;
+  top: 0; bottom: 0; right: 0;
+  z-index: 45;
+  transition: width 0.2s ease, transform 0.25s ease;
 }
 
 .sidebar-brand {
@@ -22,6 +25,7 @@
   font-size: 18px;
   font-weight: 700;
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  position: relative;
 }
 
 .sidebar-logo {
@@ -29,6 +33,14 @@
   height: 30px;
   border-radius: 3px;
   object-fit: cover;
+  flex-shrink: 0;
+}
+
+.sidebar-close-btn {
+  display: none;
+  width: auto; margin-right: auto; padding: 4px;
+  background: none; border: none; color: rgba(255,255,255,0.8);
+  font-size: 16px; cursor: pointer;
 }
 
 .sidebar-nav {
@@ -40,7 +52,7 @@
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 12px 22px;
   color: rgba(255,255,255,0.72);
   text-decoration: none;
@@ -48,7 +60,12 @@
   font-weight: 500;
   cursor: pointer;
   border-right: 3px solid transparent;
+  white-space: nowrap;
 }
+
+.nav-icon { width: 19px; height: 19px; flex-shrink: 0; }
+.nav-icon svg { width: 100%; height: 100%; }
+.nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 
 .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
 .nav-item.active {
@@ -66,21 +83,55 @@
   border-radius: 3px;
 }
 
+.sidebar-collapse-btn {
+  width: auto; margin: 8px; padding: 8px;
+  background: rgba(255,255,255,0.06); border: none; border-radius: 8px;
+  color: rgba(255,255,255,0.7); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.sidebar-collapse-btn svg { width: 16px; height: 16px; }
+.sidebar-collapse-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* طي الشريط الجانبي بسطح المكتب — أيقونات فقط */
+.shell.sidebar-collapsed .sidebar { width: 72px; }
+.shell.sidebar-collapsed .sidebar-brand-text,
+.shell.sidebar-collapsed .nav-label,
+.shell.sidebar-collapsed .nav-badge { display: none; }
+.shell.sidebar-collapsed .nav-item { justify-content: center; padding: 12px; }
+.shell.sidebar-collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+.shell.sidebar-collapsed .shell-main { margin-right: 72px; }
+
+/* خلفية معتمة لإغلاق القائمة بالجوال */
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 44;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.sidebar-backdrop.open { display: block; opacity: 1; }
+
 /* ---------- المحتوى الرئيسي ---------- */
 .shell-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  margin-right: 248px;
+  transition: margin-right 0.2s ease;
 }
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 28px;
+  padding: 14px 28px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 
 .menu-toggle {
@@ -101,24 +152,69 @@
   gap: 16px;
   font-size: 14px;
   font-weight: 500;
+  position: relative;
 }
 
-.logout-link {
-  width: auto;
-  margin: 0;
-  padding: 7px 16px;
-  background: transparent;
-  color: var(--muted);
+/* زر المستخدم بالبار العلوي + القائمة المنسدلة */
+.user-menu-btn {
+  display: flex; align-items: center; gap: 8px;
+  width: auto; margin: 0; padding: 4px 6px 4px 10px;
+  background: none; border: 1px solid var(--line); border-radius: 30px;
+  cursor: pointer;
+}
+.user-menu-btn:hover { background: var(--paper); }
+.user-menu-btn .chevron-icon { width: 14px; height: 14px; color: var(--muted); }
+
+.user-avatar-circle {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+}
+.user-avatar-circle.lg { width: 40px; height: 40px; font-size: 16px; }
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: var(--surface);
   border: 1px solid var(--line);
-  font-size: 13px;
-  font-weight: 500;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  padding: 8px;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 35;
 }
+.user-menu-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
-.logout-link:hover { background: var(--paper); color: var(--warn); border-color: var(--warn); }
+.user-menu-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 8px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.user-menu-name { font-weight: 700; color: var(--ink); font-size: 14px; }
+.user-menu-role { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.user-menu-logout {
+  width: 100%; margin: 0; padding: 9px 10px;
+  background: none; border: none; border-radius: 8px;
+  color: var(--warn); font-size: 13px; font-weight: 600;
+  text-align: right; cursor: pointer;
+}
+.user-menu-logout:hover { background: rgba(176,58,46,0.08); }
 
 .content {
   padding: 28px;
   flex: 1;
+  padding-bottom: 90px; /* مساحة للبار السفلي بالجوال */
 }
 
 .page-title {
@@ -127,6 +223,30 @@
   font-size: 22px;
   font-weight: 700;
 }
+
+/* ---------- بار سفلي (جوال فقط) ---------- */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; right: 0; left: 0;
+  z-index: 40;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  justify-content: space-around;
+}
+
+.bottom-nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  flex: 1;
+  padding: 6px 4px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+}
+.bottom-nav-item svg { width: 21px; height: 21px; }
+.bottom-nav-item.active { color: var(--primary); }
 
 /* ---------- بطاقات الملخص ---------- */
 .cards-grid {
@@ -348,14 +468,16 @@
 /* ---------- جوال ---------- */
 @media (max-width: 768px) {
   .menu-toggle { display: inline-block; }
+  .sidebar-close-btn { display: block; }
+  .sidebar-collapse-btn { display: none; }
   .sidebar {
-    position: fixed;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 50;
-    margin-right: -248px;
+    transform: translateX(100%);
+    box-shadow: -8px 0 24px rgba(0,0,0,0.2);
   }
-  .sidebar.open { margin-right: 0; box-shadow: -8px 0 24px rgba(0,0,0,0.2); }
+  .sidebar.open { transform: translateX(0); }
+  .shell-main { margin-right: 0 !important; }
+  .shell.sidebar-collapsed .sidebar { width: 248px; }
   .cards-grid { grid-template-columns: 1fr; }
+  .mobile-bottom-nav { display: flex; }
+  .content { padding-bottom: 84px; }
 }

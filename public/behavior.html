@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | السلوك</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=7">
+<link rel="stylesheet" href="/css/shell.css?v=8">
 <link rel="stylesheet" href="/css/components.css?v=8">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
@@ -23,8 +23,20 @@
       <header class="topbar">
         <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
         <div class="topbar-user">
-          <span id="userName"></span>
-          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+          <button class="user-menu-btn" id="userMenuBtn">
+            <span class="user-avatar-circle">؟</span>
+            <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+            <div class="user-menu-header">
+              <span class="user-avatar-circle lg">؟</span>
+              <div>
+                <div class="user-menu-name" id="userMenuName"></div>
+                <div class="user-menu-role" id="userMenuRole"></div>
+              </div>
+            </div>
+            <button id="logoutBtn" class="user-menu-logout">تسجيل الخروج</button>
+          </div>
         </div>
       </header>
 
@@ -69,7 +81,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=7"></script>
+  <script src="/js/shell.js?v=8"></script>
   <script src="/js/behavior.js?v=3"></script>
 </body>
 </html>
