@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>مِرقاة | سجل التتبع</title>
+<link rel="stylesheet" href="/styles.css?v=4">
+<link rel="stylesheet" href="/css/shell.css?v=2">
+<link rel="stylesheet" href="/css/components.css?v=3">
+</head>
+<body>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main class="content" id="mainContent">
+        <h1 class="page-title">سجل التتبع</h1>
+
+        <div class="toolbar">
+          <select id="filterAction"><option value="">كل الإجراءات</option></select>
+          <input type="text" id="filterEmpId" placeholder="معرّف الموظف (اختياري)">
+          <input type="date" id="filterFrom">
+          <input type="date" id="filterTo">
+          <button class="btn btn-outline" id="applyFiltersBtn">تصفية</button>
+          <div class="spacer"></div>
+          <span style="font-size:12px; color:var(--muted);">افتراضيًا آخر 7 أيام</span>
+        </div>
+
+        <div class="table-wrap" style="margin-bottom:32px;">
+          <table class="data-table">
+            <thead><tr><th>الوقت</th><th>الموظف</th><th>الدور</th><th>الإجراء</th><th>التفاصيل</th></tr></thead>
+            <tbody id="auditTableBody"><tr><td colspan="5" class="loading-row">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+
+        <h1 class="page-title" style="font-size:18px;">ملخص نشاط معلم</h1>
+        <div class="toolbar">
+          <input type="text" id="empIdInput" placeholder="معرّف الموظف (مثال: E005)">
+          <button class="btn btn-outline" id="loadSummaryBtn">عرض الملخص</button>
+        </div>
+        <div class="cards-grid" id="summaryCards"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/shell.js?v=2"></script>
+  <script src="/js/audit.js?v=1"></script>
+</body>
+</html>
