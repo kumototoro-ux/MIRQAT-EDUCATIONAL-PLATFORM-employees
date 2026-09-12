@@ -2,10 +2,10 @@ const user = mirqatInitShell('students');
 let allLists = {};
 let editingId = null;
 let deleteTargetId = null;
+let currentPage = 1;
+let studentsCache = [];
 
-if (user) {
-  init();
-}
+if (user) init();
 
 async function init() {
   if (user.role === 'admin') {
@@ -29,7 +29,7 @@ async function init() {
   fillSelect('f_sections', allLists.sections);
 
   ['searchInput', 'filterBranch', 'filterStage', 'filterGrade', 'filterSection'].forEach(id => {
-    document.getElementById(id).addEventListener('input', debounce(loadStudents, 300));
+    document.getElementById(id).addEventListener('input', debounce(() => loadStudents(1), 300));
   });
 
   document.getElementById('addStudentBtn').addEventListener('click', () => openStudentModal());
@@ -41,7 +41,7 @@ async function init() {
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
 
-  loadStudents();
+  loadStudents(1);
 }
 
 function fillSelect(id, options = [], placeholder = null) {
@@ -55,9 +55,10 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-async function loadStudents() {
+async function loadStudents(page = currentPage) {
+  currentPage = page;
   const body = document.getElementById('studentsTableBody');
-  body.innerHTML = '<tr><td colspan="8" class="loading-row">جارٍ التحميل...</td></tr>';
+  body.innerHTML = '<tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>';
 
   const filters = {
     search: document.getElementById('searchInput').value.trim() || undefined,
@@ -68,10 +69,12 @@ async function loadStudents() {
   };
 
   try {
-    const students = await mirqatApi('students', 'list', { filters });
-    renderTable(students);
+    const result = await mirqatApi('students', 'list', { filters, page, pageSize: 25 });
+    studentsCache = result.rows;
+    renderTable(result.rows);
+    mirqatRenderPagination('paginationBar', result, (p) => loadStudents(p));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="8" class="empty-state">تعذّر تحميل الطلاب: ${e.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="empty-state">تعذّر تحميل الطلاب: ${e.message}</td></tr>`;
   }
 }
 
@@ -79,12 +82,12 @@ function renderTable(students) {
   const body = document.getElementById('studentsTableBody');
 
   if (!students.length) {
-    body.innerHTML = '<tr><td colspan="8" class="empty-state">لا يوجد طلاب مطابقون</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="empty-state">لا يوجد طلاب مطابقون</td></tr>';
     return;
   }
 
   body.innerHTML = students.map(s => `
-    <tr>
+    <tr class="clickable" onclick="openStudentDrawer('${s.id}')">
       <td>${s.id}</td>
       <td>${s.name_ar}</td>
       <td>${s.branch || '—'}</td>
@@ -92,30 +95,42 @@ function renderTable(students) {
       <td>${s.grades || '—'}</td>
       <td>${s.sections || '—'}</td>
       <td>${s.fees_status || '—'}</td>
-      <td>
-        ${user.role === 'admin' ? `
-          <div class="row-actions">
-            <button class="btn btn-outline btn-sm" onclick="editStudent('${s.id}')">تعديل</button>
-            <button class="btn btn-danger btn-sm" onclick="askDeleteStudent('${s.id}', '${s.name_ar.replace(/'/g, "\\'")}')">حذف</button>
-          </div>
-        ` : ''}
-      </td>
     </tr>
   `).join('');
 }
 
-let studentsCache = [];
+/* ---------------- لوحة التفاصيل الجانبية ---------------- */
+function openStudentDrawer(id) {
+  const s = studentsCache.find(x => x.id === id);
+  if (!s) return;
 
-async function editStudent(id) {
-  try {
-    const students = await mirqatApi('students', 'list', { filters: {} });
-    studentsCache = students;
-    const s = students.find(x => x.id === id);
-    if (!s) return;
-    openStudentModal(s);
-  } catch (e) {
-    alert('تعذّر تحميل بيانات الطالب: ' + e.message);
-  }
+  const bodyHtml = [
+    mirqatDrawerField('المعرّف', s.id),
+    mirqatDrawerField('الاسم بالعربي', s.name_ar),
+    mirqatDrawerField('الاسم بالإنجليزي', s.name_en),
+    mirqatDrawerField('رقم الهوية', s.national_id),
+    mirqatDrawerField('الجنسية', s.nationality),
+    mirqatDrawerField('تاريخ الميلاد', s.dob),
+    mirqatDrawerField('الجنس', s.gender),
+    mirqatDrawerField('الفرع', s.branch),
+    mirqatDrawerField('المرحلة', s.stages),
+    mirqatDrawerField('الصف', s.grades),
+    mirqatDrawerField('الشعبة', s.sections),
+    mirqatDrawerField('حالة الرسوم', s.fees_status)
+  ].join('');
+
+  const footerHtml = user.role === 'admin' ? `
+    <button class="btn btn-outline" onclick="mirqatCloseDrawer(); editStudent('${s.id}')">تعديل</button>
+    <button class="btn btn-danger" onclick="mirqatCloseDrawer(); askDeleteStudent('${s.id}', '${s.name_ar.replace(/'/g, "\\'")}')">حذف</button>
+  ` : '';
+
+  mirqatOpenDrawer({ title: s.name_ar, bodyHtml, footerHtml });
+}
+
+/* ---------------- إضافة/تعديل ---------------- */
+function editStudent(id) {
+  const s = studentsCache.find(x => x.id === id);
+  if (s) openStudentModal(s);
 }
 
 function openStudentModal(student = null) {
@@ -164,7 +179,7 @@ async function submitStudentForm(e) {
       await mirqatApi('students', 'create', { data });
     }
     closeStudentModal();
-    loadStudents();
+    loadStudents(editingId ? currentPage : 1);
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {
@@ -172,6 +187,7 @@ async function submitStudentForm(e) {
   }
 }
 
+/* ---------------- حذف ---------------- */
 function askDeleteStudent(id, name) {
   deleteTargetId = id;
   document.getElementById('confirmMessage').textContent = `سيتم حذف الطالب "${name}" نهائيًا. هذا الإجراء لا يمكن التراجع عنه.`;
@@ -188,7 +204,7 @@ async function performDelete() {
   try {
     await mirqatApi('students', 'delete', { id: deleteTargetId });
     closeConfirmModal();
-    loadStudents();
+    loadStudents(currentPage);
   } catch (e) {
     alert('تعذّر حذف الطالب: ' + e.message);
   }
