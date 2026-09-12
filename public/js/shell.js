@@ -105,3 +105,96 @@ function mirqatInitShell(activeKey) {
 
   return user;
 }
+
+/* ================= لوحة جانبية مشتركة (تُحقَن تلقائيًا مرة واحدة) ================= */
+function mirqatEnsureDrawer() {
+  if (document.getElementById('mirqatDrawerOverlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay';
+  overlay.id = 'mirqatDrawerOverlay';
+  overlay.innerHTML = `
+    <div class="drawer" id="mirqatDrawer" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <h2 id="mirqatDrawerTitle"></h2>
+        <button class="drawer-close" id="mirqatDrawerClose">✕</button>
+      </div>
+      <div class="drawer-body" id="mirqatDrawerBody"></div>
+      <div class="drawer-footer" id="mirqatDrawerFooter"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('mirqatDrawerClose').addEventListener('click', mirqatCloseDrawer);
+  // النقر على المنطقة المعتمة خارج اللوحة يغلقها أيضًا (مو نافذة تأكيد حرجة)
+  overlay.addEventListener('click', mirqatCloseDrawer);
+}
+
+function mirqatOpenDrawer({ title, bodyHtml, footerHtml = '' }) {
+  mirqatEnsureDrawer();
+  document.getElementById('mirqatDrawerTitle').textContent = title;
+  document.getElementById('mirqatDrawerBody').innerHTML = bodyHtml;
+  document.getElementById('mirqatDrawerFooter').innerHTML = footerHtml;
+  document.getElementById('mirqatDrawerOverlay').classList.add('open');
+  document.getElementById('mirqatDrawer').classList.add('open');
+}
+
+function mirqatCloseDrawer() {
+  const overlay = document.getElementById('mirqatDrawerOverlay');
+  const drawer = document.getElementById('mirqatDrawer');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  drawer.classList.remove('open');
+}
+
+/** يبني حقل عرض بسيط (تسمية + قيمة) داخل اللوحة الجانبية */
+function mirqatDrawerField(label, value) {
+  return `<div class="drawer-field"><span class="label">${label}</span><span class="value">${value ?? '—'}</span></div>`;
+}
+
+/* ================= ترقيم صفحات مشترك ================= */
+/**
+ * يرسم شريط ترقيم صفحات في العنصر المحدد.
+ * meta: { page, totalPages, total, pageSize } من استجابة أي API مُرقَّم.
+ * onPage(pageNumber): دالة تُستدعى عند اختيار صفحة جديدة.
+ */
+function mirqatRenderPagination(containerId, meta, onPage) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!meta || meta.totalPages <= 1) {
+    el.innerHTML = meta ? `<span>إجمالي النتائج: ${meta.total}</span>` : '';
+    return;
+  }
+
+  const { page, totalPages, total } = meta;
+  const pages = mirqatPageRange(page, totalPages);
+
+  el.innerHTML = `
+    <span>صفحة ${page} من ${totalPages} — إجمالي ${total}</span>
+    <div class="pagination-pages">
+      <button class="page-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>السابق</button>
+      ${pages.map(p => p === '...'
+        ? `<span class="page-ellipsis">...</span>`
+        : `<button class="page-btn${p === page ? ' active' : ''}" data-page="${p}">${p}</button>`
+      ).join('')}
+      <button class="page-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>التالي</button>
+    </div>
+  `;
+
+  el.querySelectorAll('.page-btn:not(:disabled)').forEach(btn => {
+    btn.addEventListener('click', () => onPage(parseInt(btn.dataset.page, 10)));
+  });
+}
+
+function mirqatPageRange(current, total) {
+  const range = [];
+  const delta = 1;
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+      range.push(i);
+    } else if (range[range.length - 1] !== '...') {
+      range.push('...');
+    }
+  }
+  return range;
+}
