@@ -10,6 +10,7 @@ let currentLogPage = 1;
 let editTargetId = null;
 let deleteTargetId = null;
 let evalChartInstance = null;
+let trendChartInstance = null;
 let currentWeekInfo = null;
 
 function splitList(v) { return (v || '').split(',').map(s => s.trim()).filter(Boolean); }
@@ -91,6 +92,29 @@ async function loadStats() {
         <div class="card-label">إجمالي كل الرصد</div>
       </div>
     `;
+
+    if (stats.weeklyTrend && stats.weeklyTrend.length) {
+      document.getElementById('trendChartCard').style.display = 'block';
+      const trendCtx = document.getElementById('trendChart');
+      if (trendChartInstance) trendChartInstance.destroy();
+      trendChartInstance = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: stats.weeklyTrend.map(w => w.label),
+          datasets: [{
+            label: 'عدد الرصد',
+            data: stats.weeklyTrend.map(w => w.count),
+            borderColor: '#A9813F',
+            backgroundColor: 'rgba(169,129,63,0.12)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#A9813F',
+            pointRadius: 4
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    }
 
     if (stats.byEvalType && stats.byEvalType.length) {
       document.getElementById('evalChartCard').style.display = 'block';

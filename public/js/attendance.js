@@ -4,6 +4,8 @@ let currentRoster = [];
 let deleteTargetId = null;
 let editTargetId = null;
 let statusChartInstance = null;
+let statusBarChartInstance = null;
+let trendChartInstance = null;
 let currentLogPage = 1;
 let manualDateAllowed = false;
 
@@ -58,6 +60,15 @@ async function init() {
   document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
+
+  document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('mainPanel-stats').hidden = btn.dataset.main !== 'stats';
+      document.getElementById('mainPanel-record').hidden = btn.dataset.main !== 'record';
+    });
+  });
 
   fillSelect('ef_status', allLists.attendance_statuses);
 
@@ -133,9 +144,9 @@ async function populateManualWeekSelect() {
 }
 
 function setupTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('#mainPanel-record .tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#mainPanel-record .tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       ['record', 'log', 'finished'].forEach(t => {
         document.getElementById('panel-' + t).hidden = t !== btn.dataset.tab;
@@ -180,6 +191,41 @@ async function loadStats() {
         },
         plugins: [mirqatDonutCenterPlugin(String(stats.total))],
         options: { responsive: true, cutout: '72%', plugins: { legend: { position: 'bottom' } } }
+      });
+
+      document.getElementById('statusBarChartCard').style.display = 'block';
+      const barCtx = document.getElementById('statusBarChart');
+      if (statusBarChartInstance) statusBarChartInstance.destroy();
+      statusBarChartInstance = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: stats.byStatus.map(s => s.label),
+          datasets: [{ data: stats.byStatus.map(s => s.count), backgroundColor: '#2F6B52', borderRadius: 8, barThickness: 34 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      });
+    }
+
+    if (stats.weeklyTrend && stats.weeklyTrend.length) {
+      document.getElementById('trendChartCard').style.display = 'block';
+      const trendCtx = document.getElementById('trendChart');
+      if (trendChartInstance) trendChartInstance.destroy();
+      trendChartInstance = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: stats.weeklyTrend.map(w => w.label),
+          datasets: [{
+            label: 'عدد السجلات',
+            data: stats.weeklyTrend.map(w => w.count),
+            borderColor: '#2F6B52',
+            backgroundColor: 'rgba(47,107,82,0.12)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#2F6B52',
+            pointRadius: 4
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
       });
     }
   } catch (e) {

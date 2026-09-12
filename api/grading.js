@@ -198,7 +198,21 @@ async function getStats(req, res, user) {
     }))
   );
 
-  return ok(res, { currentWeek, totalAllTime, totalThisWeek, totalPreviousWeek, byEvalType: byEvalType.filter(e => e.count > 0) });
+  // اتجاه آخر 6 أسابيع (لرسم بياني خطي) — من التقويم الدراسي الفعلي
+  const { data: last6Weeks } = await supabase
+    .from('school_calendar')
+    .select('term, week, week_start_date')
+    .lte('week_start_date', today)
+    .order('week_start_date', { ascending: false })
+    .limit(6);
+
+  const weeklyTrend = last6Weeks
+    ? (await Promise.all(
+        last6Weeks.map(async w => ({ label: w.week, count: await countWhere({ term: w.term, week: w.week }) }))
+      )).reverse()
+    : [];
+
+  return ok(res, { currentWeek, totalAllTime, totalThisWeek, totalPreviousWeek, byEvalType: byEvalType.filter(e => e.count > 0), weeklyTrend });
 }
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ لمادة معيّنة ---------------- */

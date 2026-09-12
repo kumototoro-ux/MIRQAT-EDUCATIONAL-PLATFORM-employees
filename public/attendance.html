@@ -31,12 +31,32 @@
       <main class="content">
         <h1 class="page-title">التحضير والغياب</h1>
 
-        <div class="cards-grid" id="statsCards"></div>
-        <div class="chart-card" id="statusChartCard" style="display:none;">
-          <h3>توزيع حالات التحضير (هذا الأسبوع)</h3>
-          <canvas id="statusChart"></canvas>
+        <div class="tabs" id="mainTabs">
+          <button class="tab-btn active" data-main="stats">الإحصائيات العامة</button>
+          <button class="tab-btn" data-main="record">التحضير</button>
         </div>
 
+        <!-- ============ تبويب رئيسي: الإحصائيات العامة ============ -->
+        <section id="mainPanel-stats">
+          <div class="cards-grid" id="statsCards"></div>
+          <div class="chart-card" id="trendChartCard" style="display:none;">
+            <h3>اتجاه سجلات التحضير — آخر 6 أسابيع</h3>
+            <canvas id="trendChart"></canvas>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;">
+            <div class="chart-card" id="statusChartCard" style="display:none;">
+              <h3>توزيع حالات التحضير (هذا الأسبوع)</h3>
+              <canvas id="statusChart"></canvas>
+            </div>
+            <div class="chart-card" id="statusBarChartCard" style="display:none;">
+              <h3>عدد كل حالة (هذا الأسبوع)</h3>
+              <canvas id="statusBarChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ تبويب رئيسي: التحضير ============ -->
+        <section id="mainPanel-record" hidden>
         <div class="tabs">
           <button class="tab-btn active" data-tab="record">تسجيل تحضير</button>
           <button class="tab-btn" data-tab="log">سجل التحضير</button>
@@ -128,6 +148,7 @@
             </table>
           </div>
         </section>
+        </section>
       </main>
     </div>
   </div>
@@ -163,6 +184,6 @@
   </div>
 
   <script src="/js/shell.js?v=7"></script>
-  <script src="/js/attendance.js?v=6"></script>
+  <script src="/js/attendance.js?v=7"></script>
 </body>
 </html>
