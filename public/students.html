@@ -6,7 +6,8 @@
 <title>مِرقاة | الطلاب</title>
 <link rel="stylesheet" href="/styles.css?v=4">
 <link rel="stylesheet" href="/css/shell.css?v=2">
-<link rel="stylesheet" href="/css/components.css?v=4">
+<link rel="stylesheet" href="/css/components.css?v=5">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="shell" class="shell">
@@ -40,7 +41,7 @@
           <button class="btn btn-primary" id="addStudentBtn" style="display:none">+ إضافة طالب</button>
         </div>
 
-        <div class="table-wrap">
+        <div class="table-wrap" id="resultsTableWrap" style="display:none">
           <table class="data-table">
             <thead>
               <tr>
@@ -53,12 +54,34 @@
                 <th>حالة الرسوم</th>
               </tr>
             </thead>
-            <tbody id="studentsTableBody">
-              <tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>
-            </tbody>
+            <tbody id="studentsTableBody"></tbody>
           </table>
         </div>
         <div class="pagination-bar" id="paginationBar"></div>
+
+        <!-- ============ نظرة عامة: تظهر افتراضيًا قبل أي فلترة ============ -->
+        <div id="overviewSection">
+          <p class="overview-hint">ابحث أو فلتر لعرض قائمة الطلاب — لتفادي تحميل آلاف السجلات دفعة واحدة، هذه نظرة عامة سريعة بدلها.</p>
+
+          <div class="cards-grid" id="statsCards">
+            <div class="card skeleton"></div>
+            <div class="card skeleton"></div>
+            <div class="card skeleton"></div>
+          </div>
+
+          <div class="chart-card">
+            <h3>توزيع الطلاب حسب الصف</h3>
+            <canvas id="gradesChart"></canvas>
+          </div>
+
+          <h3 style="font-size:14px; color:var(--primary-dark); margin: 24px 0 10px;">آخر 10 طلاب مُضافين</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>المعرّف</th><th>الاسم</th><th>الفرع</th><th>الصف</th></tr></thead>
+              <tbody id="recentTableBody"><tr><td colspan="4" class="loading-row">جارٍ التحميل...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -127,7 +150,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=3"></script>
-  <script src="/js/students.js?v=2"></script>
+  <script src="/js/shell.js?v=4"></script>
+  <script src="/js/students.js?v=3"></script>
 </body>
 </html>
