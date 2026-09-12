@@ -296,8 +296,21 @@ table.data-table {
 .tab-panel[hidden] { display: none; }
 
 /* ---------- صف جدول قابل للنقر ---------- */
-.data-table tbody tr.clickable { cursor: pointer; }
+.data-table tbody tr.clickable { cursor: pointer; position: relative; }
 .data-table tbody tr.clickable:hover { background: var(--paper); }
+.data-table tbody tr.clickable:active { background: #ece9e0; }
+
+/* سهم يشير لإمكانية فتح التفاصيل — يظهر بآخر كل صف قابل للنقر */
+.data-table tbody tr.clickable td:first-child::before {
+  content: '›';
+  color: var(--line);
+  font-weight: bold;
+  margin-left: 6px;
+}
+.data-table tbody tr.clickable:hover td:first-child::before,
+.data-table tbody tr.clickable:active td:first-child::before {
+  color: var(--primary);
+}
 
 /* ---------- نافذة تفاصيل مركزية (بطاقة بالوسط على سطح المكتب، Bottom Sheet على الجوال) ---------- */
 .detail-overlay {
@@ -420,6 +433,60 @@ table.data-table {
 
 @media (max-width: 560px) {
   .cards-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- تحويل الجدول لبطاقات مكدّسة على الجوال (بدل التمرير الأفقي) ---------- */
+@media (max-width: 700px) {
+  .table-wrap { overflow-x: visible; border: none; background: transparent; }
+
+  .data-table thead { display: none; }
+  .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+
+  .data-table tr {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    padding: 4px 0;
+  }
+
+  .data-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px dashed var(--line);
+    white-space: normal;
+    text-align: left;
+  }
+  .data-table td:last-child { border-bottom: none; }
+
+  /* التسمية تُبنى من data-label على كل خلية */
+  .data-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-left: 12px;
+  }
+  .data-table td:empty,
+  .data-table td[data-label=""] { display: none; }
+
+  /* صف قابل للنقر على الجوال: شارة "التفاصيل" واضحة بدل السهم الصغير */
+  .data-table tr.clickable { position: relative; }
+  .data-table tr.clickable::after {
+    content: 'اضغط لعرض التفاصيل والتعديل والحذف ›';
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: var(--primary);
+    background: var(--paper);
+    padding: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .data-table tr.clickable td:first-child::before { display: none; }
+  .data-table tr.clickable:active { background: #ece9e0; }
 }
 
 /* ---------- قسم نظرة عامة (إحصائيات + رسم بياني + آخر سجلات) ---------- */
