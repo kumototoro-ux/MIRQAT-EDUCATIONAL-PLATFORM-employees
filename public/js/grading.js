@@ -9,6 +9,8 @@ let currentRoster = [];
 let currentLogPage = 1;
 let editTargetId = null;
 let deleteTargetId = null;
+let evalChartInstance = null;
+let currentWeekInfo = null;
 
 function splitList(v) { return (v || '').split(',').map(s => s.trim()).filter(Boolean); }
 
@@ -21,6 +23,8 @@ async function init() {
       mirqatApi('settings', 'getEvalTypes')
     ]);
   } catch { allLists = {}; evalTypes = []; }
+
+  try { currentWeekInfo = await mirqatApi('schedule', 'getCurrentTermInfo', {}); } catch { currentWeekInfo = null; }
 
   if (user.role === 'admin') {
     document.getElementById('adminPicker').style.display = 'flex';
@@ -46,6 +50,39 @@ async function init() {
   document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
   document.getElementById('cancelConfirmBtn').addEventListener('click', closeConfirmModal);
   document.getElementById('confirmDeleteBtn').addEventListener('click', performDelete);
+
+  loadStats();
+}
+
+/* ---------------- إحصائيات فورية (تظهر قبل اختيار أي معلم أو مادة) ---------------- */
+async function loadStats() {
+  try {
+    const stats = await mirqatApi('grading', 'getStats', {});
+
+    document.getElementById('statsCards').innerHTML = [
+      { label: 'رصد هذا الأسبوع', value: stats.totalThisWeek, tone: 'primary' },
+      { label: 'إجمالي كل الرصد', value: stats.totalAllTime, tone: 'gold' }
+    ].map(c => `<div class="card" data-tone="${c.tone}"><div class="card-value">${c.value}</div><div class="card-label">${c.label}</div></div>`).join('');
+
+    if (stats.byEvalType && stats.byEvalType.length) {
+      document.getElementById('evalChartCard').style.display = 'block';
+      const ctx = document.getElementById('evalChart');
+      if (evalChartInstance) evalChartInstance.destroy();
+      evalChartInstance = new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+          labels: stats.byEvalType.map(e => e.label),
+          datasets: [{
+            data: stats.byEvalType.map(e => e.count),
+            backgroundColor: ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F', '#5C8A73']
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+  } catch (e) {
+    document.getElementById('statsCards').innerHTML = `<p class="empty-state">تعذّر تحميل الإحصائيات: ${e.message}</p>`;
+  }
 }
 
 function fillSelect(id, options = [], placeholder = null) {
@@ -207,7 +244,7 @@ async function openTaskRoster(task) {
       return {
         student_id: studentId, student_name: student?.name_ar,
         branch: task.branch, stages: task.stages, grades: task.grades, sections: task.sections,
-        subject: currentSubject, term: task.term, eval_type: task.eval_type, task_name: task.task_name,
+        subject: currentSubject, term: task.term, week: currentWeekInfo?.week || null, eval_type: task.eval_type, task_name: task.task_name,
         earned_score: Number(scoreVal), max_score: Number(task.max_score)
       };
     }).filter(Boolean);
@@ -229,12 +266,13 @@ async function openTaskRoster(task) {
 function renderManual(el) {
   const sf = scopeFields();
   el.innerHTML = `
+    <p class="overview-hint">الأسبوع الدراسي يُسجَّل تلقائيًا من التقويم: ${currentWeekInfo ? currentWeekInfo.term + ' — ' + currentWeekInfo.week : 'لا يوجد أسبوع مطابق لتاريخ اليوم في التقويم'}</p>
     <div class="toolbar">
       <select id="m_branch">${sf.branches.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
       <select id="m_stages">${sf.stages.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
       <select id="m_grades">${sf.grades.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
       <select id="m_sections">${sf.sections.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="m_term">${(allLists.terms || []).map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+      <select id="m_term">${(allLists.terms || []).map(t => `<option value="${t}" ${t === currentWeekInfo?.term ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="m_eval_type">${evalTypes.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
       <input type="text" id="m_task_name" placeholder="اسم التكليف/الجلسة">
       <input type="number" id="m_max_score" placeholder="الدرجة العظمى" style="max-width:110px" min="0">
@@ -286,7 +324,7 @@ function renderManual(el) {
         student_id: studentId, student_name: student?.name_ar,
         branch: document.getElementById('m_branch').value, stages: document.getElementById('m_stages').value,
         grades: document.getElementById('m_grades').value, sections: document.getElementById('m_sections').value,
-        subject: currentSubject, term: document.getElementById('m_term').value, eval_type: evalType,
+        subject: currentSubject, term: document.getElementById('m_term').value, week: currentWeekInfo?.week || null, eval_type: evalType,
         task_name: taskName, earned_score: Number(val), max_score: Number(maxScore)
       };
     }).filter(Boolean);
@@ -305,6 +343,7 @@ function renderManual(el) {
 function renderParticipation(el) {
   const sf = scopeFields();
   el.innerHTML = `
+    <p class="overview-hint">تاريخ وأسبوع الرصد = اليوم تلقائيًا: ${currentWeekInfo ? currentWeekInfo.term + ' — ' + currentWeekInfo.week : 'لا يوجد أسبوع مطابق لتاريخ اليوم'}</p>
     <div class="form-group"><label>اسم المشاركة</label><input type="text" id="p_name" placeholder="مثال: مشاركة الحصة، سؤال شفهي..."></div>
     <div class="form-row">
       <div class="form-group"><label>التفاصيل (اختياري)</label><input type="text" id="p_details"></div>
@@ -315,7 +354,7 @@ function renderParticipation(el) {
       <select id="p_stages">${sf.stages.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
       <select id="p_grades">${sf.grades.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
       <select id="p_sections">${sf.sections.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
-      <select id="p_term">${(allLists.terms || []).map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+      <select id="p_term">${(allLists.terms || []).map(t => `<option value="${t}" ${t === currentWeekInfo?.term ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <button class="btn btn-outline" id="p_loadBtn">تحميل الصف</button>
     </div>
     <div class="table-wrap" id="p_rosterWrap" style="display:none">
@@ -362,7 +401,7 @@ function renderParticipation(el) {
         student_id: studentId, student_name: student?.name_ar,
         branch: document.getElementById('p_branch').value, stages: document.getElementById('p_stages').value,
         grades: document.getElementById('p_grades').value, sections: document.getElementById('p_sections').value,
-        subject: currentSubject, term: document.getElementById('p_term').value, eval_type: 'المشاركة و تفاعل',
+        subject: currentSubject, term: document.getElementById('p_term').value, week: currentWeekInfo?.week || null, eval_type: 'المشاركة و تفاعل',
         task_name: name + (document.getElementById('p_details').value.trim() ? ' — ' + document.getElementById('p_details').value.trim() : ''),
         earned_score: Number(val), max_score: Number(max),
         recorded_date: new Date().toISOString().slice(0, 10)
@@ -384,7 +423,7 @@ function renderLog(el) {
   el.innerHTML = `
     <div class="toolbar">
       <select id="l_term"><option value="">اختر الترم</option>${(allLists.terms || []).map(t => `<option value="${t}">${t}</option>`).join('')}</select>
-      <select id="l_week"><option value="">اختر الأسبوع</option>${Array.from({length:20},(_,i)=>i+1).map(i => `<option value="${i}">أسبوع ${i}</option>`).join('')}</select>
+      <select id="l_week"><option value="">اختر الترم أولًا</option></select>
       <input type="date" id="l_date" title="تاريخ الرصد">
       <button class="btn btn-outline" id="l_filterBtn">بحث</button>
     </div>
@@ -396,6 +435,14 @@ function renderLog(el) {
     </div>
     <div class="pagination-bar" id="l_pagination"></div>
   `;
+
+  document.getElementById('l_term').addEventListener('change', async () => {
+    const term = document.getElementById('l_term').value;
+    const weekSelect = document.getElementById('l_week');
+    weekSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
+    const weeks = term ? await mirqatGetWeeksForTerm(term) : [];
+    weekSelect.innerHTML = '<option value="">اختر الأسبوع</option>' + weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+  });
 
   document.getElementById('l_filterBtn').addEventListener('click', () => loadLog(1));
 }

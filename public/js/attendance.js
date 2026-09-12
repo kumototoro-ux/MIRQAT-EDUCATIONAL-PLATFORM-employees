@@ -35,7 +35,7 @@ async function init() {
     document.getElementById('f_week').style.background = '';
     document.getElementById('f_week').placeholder = 'الأسبوع (اكتبه يدويًا)';
   } else {
-    loadCurrentWeek();
+    await loadCurrentWeek();
   }
 
   setupTabs();
@@ -73,13 +73,16 @@ function fillSelect(id, options = [], placeholder = null) {
 }
 
 function populateWeekOptions() {
-  fillSelect('log_week', allLists.terms ? null : null); // noop placeholder
-  const weekSelect = document.getElementById('log_week');
-  weekSelect.innerHTML = '<option value="">اختر الأسبوع</option>';
-  // نبني قائمة أسابيع عامة (1-20) لأن أسماء الأسابيع نصية حرة في بياناتك
-  for (let i = 1; i <= 20; i++) {
-    weekSelect.innerHTML += `<option value="${i}">أسبوع ${i}</option>`;
-  }
+  // الأسبوع في سجل التحضير يعتمد على الترم المختار — نبنيه ديناميكيًا من التقويم الفعلي
+  fillSelect('log_term', allLists.terms, 'اختر الترم');
+  document.getElementById('log_term').addEventListener('change', async () => {
+    const term = document.getElementById('log_term').value;
+    const weekSelect = document.getElementById('log_week');
+    weekSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
+    const weeks = term ? await mirqatGetWeeksForTerm(term) : [];
+    weekSelect.innerHTML = '<option value="">اختر الأسبوع</option>' + weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+  });
+
   const daySelect = document.getElementById('log_day');
   daySelect.innerHTML = '<option value="">اختر اليوم</option>' +
     ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'].map(d => `<option value="${d}">${d}</option>`).join('');
@@ -117,33 +120,32 @@ function setupTabs() {
 /* ---------------- إحصائيات ---------------- */
 async function loadStats() {
   try {
-    const term = document.getElementById('f_term').value || undefined;
-    const week = document.getElementById('f_week').value || undefined;
-    const result = await mirqatApi('attendance', 'getAttendanceRecords', { filters: { term, week }, page: 1, pageSize: 200 });
-
+    const stats = await mirqatApi('attendance', 'getStats', {});
     const counts = {};
-    result.rows.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    stats.byStatus.forEach(s => { counts[s.label] = s.count; });
 
     document.getElementById('statsCards').innerHTML = [
-      { label: 'سجلات هذا الأسبوع', value: result.total, tone: 'primary' },
+      { label: 'سجلات هذا الأسبوع', value: stats.total, tone: 'primary' },
       { label: 'حاضر', value: counts['حاضر'] || 0, tone: 'info' },
       { label: 'غائب', value: counts['غائب'] || 0, tone: 'warn' }
     ].map(c => `<div class="card" data-tone="${c.tone}"><div class="card-value">${c.value}</div><div class="card-label">${c.label}</div></div>`).join('');
 
-    if (result.rows.length) {
+    if (stats.total > 0) {
       document.getElementById('statusChartCard').style.display = 'block';
       const ctx = document.getElementById('statusChart');
       if (statusChartInstance) statusChartInstance.destroy();
       statusChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: Object.keys(counts),
-          datasets: [{ data: Object.values(counts), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'], borderWidth: 0 }]
+          labels: stats.byStatus.map(s => s.label),
+          datasets: [{ data: stats.byStatus.map(s => s.count), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'], borderWidth: 0 }]
         },
         options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
       });
     }
-  } catch { /* صامت — إحصائية ثانوية */ }
+  } catch (e) {
+    document.getElementById('statsCards').innerHTML = `<p class="empty-state">تعذّر تحميل الإحصائيات: ${e.message}</p>`;
+  }
 }
 
 /* ---------------- تسجيل تحضير ---------------- */
@@ -236,18 +238,19 @@ async function saveRoster() {
 /* ---------------- سجل التحضير ---------------- */
 async function loadLog(page = currentLogPage) {
   currentLogPage = page;
+  const term = document.getElementById('log_term').value;
   const week = document.getElementById('log_week').value;
   const day = document.getElementById('log_day').value;
   const body = document.getElementById('logTableBody');
 
-  if (!week || !day) {
-    body.innerHTML = '<tr><td colspan="6" class="empty-state">اختر الأسبوع واليوم أولًا</td></tr>';
+  if (!term || !week || !day) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">اختر الترم والأسبوع واليوم أولًا</td></tr>';
     return;
   }
 
   body.innerHTML = '<tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr>';
 
-  const filters = { week, day };
+  const filters = { term, week, day };
   const empFilter = document.getElementById('log_employee').value;
   if (empFilter) filters.employeeId = empFilter;
 

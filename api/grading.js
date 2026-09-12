@@ -36,6 +36,8 @@ export default async function handler(req, res) {
         return await getGradingRecords(req, res, user, body);
       case 'getFinishedWeekRecords':
         return await getFinishedWeekRecords(req, res, user, body);
+      case 'getStats':
+        return await getStats(req, res, user, body);
       case 'updateRosterRecords':
         return await updateRosterRecords(req, res, user, body);
       case 'deleteRosterRecords':
@@ -151,6 +153,39 @@ async function getGradingRecords(req, res, user, { filters = {}, page, pageSize 
   }));
 
   return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
+}
+
+/* ---------------- إحصائيات سريعة (عدّ فقط) — تظهر فورًا بلا اختيار معلم/مادة ---------------- */
+async function getStats(req, res, user) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: currentWeek } = await supabase
+    .from('school_calendar')
+    .select('term, week')
+    .lte('week_start_date', today)
+    .gte('week_end_date', today)
+    .limit(1)
+    .maybeSingle();
+
+  const countWhere = async (extra = {}) => {
+    let q = supabase.from('daily_follow_up').select('*', { count: 'exact', head: true });
+    q = scopeToOwner(q, user);
+    for (const [col, val] of Object.entries(extra)) q = q.eq(col, val);
+    const { count } = await q;
+    return count || 0;
+  };
+
+  const totalAllTime = await countWhere();
+  const totalThisWeek = currentWeek ? await countWhere({ term: currentWeek.term, week: currentWeek.week }) : 0;
+
+  const { data: evalRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'continuous_eval_types');
+  const byEvalType = await Promise.all(
+    (evalRows || []).map(async r => ({
+      label: r.value,
+      count: currentWeek ? await countWhere({ term: currentWeek.term, week: currentWeek.week, eval_type: r.value }) : 0
+    }))
+  );
+
+  return ok(res, { currentWeek, totalAllTime, totalThisWeek, byEvalType: byEvalType.filter(e => e.count > 0) });
 }
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ لمادة معيّنة ---------------- */

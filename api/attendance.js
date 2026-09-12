@@ -33,6 +33,8 @@ export default async function handler(req, res) {
         return await getAttendanceRecords(req, res, user, body);
       case 'getFinishedWeekRecords':
         return await getFinishedWeekRecords(req, res, user, body);
+      case 'getStats':
+        return await getStats(req, res, user, body);
       case 'updateAttendanceRecords':
         return await updateAttendanceRecords(req, res, user, body);
       case 'deleteAttendanceRecords':
@@ -121,6 +123,34 @@ async function getAttendanceRecords(req, res, user, { filters = {}, page, pageSi
   }));
 
   return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
+}
+
+/* ---------------- إحصائيات سريعة (عدّ فقط — بلا جلب صفوف) للأسبوع الدراسي الحالي ---------------- */
+async function getStats(req, res, user) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: currentWeek } = await supabase
+    .from('school_calendar')
+    .select('term, week')
+    .lte('week_start_date', today)
+    .gte('week_end_date', today)
+    .limit(1)
+    .maybeSingle();
+
+  const countWhere = async (status) => {
+    let q = supabase.from('attendance').select('*', { count: 'exact', head: true });
+    if (user.role !== 'admin') q = q.eq('employee_id', user.employeeId);
+    if (currentWeek) q = q.eq('term', currentWeek.term).eq('week', currentWeek.week);
+    if (status) q = q.eq('status', status);
+    const { count } = await q;
+    return count || 0;
+  };
+
+  const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
+
+  const total = await countWhere();
+  const byStatus = await Promise.all((statusRows || []).map(async r => ({ label: r.value, count: await countWhere(r.value) })));
+
+  return ok(res, { currentWeek, total, byStatus });
 }
 
 /* ---------------- سجلات آخر أسبوع دراسي منتهٍ ---------------- */

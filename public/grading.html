@@ -31,6 +31,15 @@
       <main class="content">
         <h1 class="page-title">رصد الدرجات</h1>
 
+        <div class="cards-grid" id="statsCards">
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+        </div>
+        <div class="chart-card" id="evalChartCard" style="display:none;">
+          <h3>توزيع الرصد حسب نوع التقييم (هذا الأسبوع)</h3>
+          <canvas id="evalChart"></canvas>
+        </div>
+
         <!-- أدمن فقط: اختيار الفرع ثم المعلم -->
         <div class="toolbar" id="adminPicker" style="display:none;">
           <select id="admin_branch"><option value="">اختر الفرع</option></select>
@@ -93,7 +102,7 @@
     .sub-tab-btn.active { color: var(--primary-dark); border-bottom-color: var(--gold); }
   </style>
 
-  <script src="/js/shell.js?v=4"></script>
-  <script src="/js/grading.js?v=4"></script>
+  <script src="/js/shell.js?v=5"></script>
+  <script src="/js/grading.js?v=5"></script>
 </body>
 </html>

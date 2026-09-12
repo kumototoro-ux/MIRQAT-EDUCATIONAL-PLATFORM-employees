@@ -173,6 +173,24 @@ function mirqatDrawerField(label, value) {
   return `<div class="drawer-field"><span class="label">${label}</span><span class="value">${value ?? '—'}</span></div>`;
 }
 
+/**
+ * يجيب أسماء الأسابيع الفعلية من التقويم الدراسي (مثل "الأول"، "الثاني"...)
+ * بدل استخدام أرقام وهمية — لأن كل الجداول تخزّن الأسبوع كنص من التقويم.
+ */
+async function mirqatGetWeeksForTerm(term) {
+  try {
+    const calendar = await mirqatApi('schedule', 'getCalendar', { term: term || undefined });
+    const seen = new Set();
+    const weeks = [];
+    calendar.forEach(row => {
+      if (row.week && !seen.has(row.week)) { seen.add(row.week); weeks.push(row.week); }
+    });
+    return weeks;
+  } catch {
+    return [];
+  }
+}
+
 /* ================= ترقيم صفحات مشترك ================= */
 /**
  * يرسم شريط ترقيم صفحات في العنصر المحدد.
