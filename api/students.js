@@ -4,10 +4,11 @@ import { ok, fail } from '../lib/response.js';
 import { logAudit } from '../lib/audit.js';
 import { generateNextId } from '../lib/idGen.js';
 import { applyEmployeeScope } from '../lib/scope.js';
+import { applyPagination, paginatedResult } from '../lib/paginate.js';
 
 /**
  * Actions:
- *  - list    { filters? }        → أي مستخدم مسجّل دخول (مقيّد بنطاقه إن لم يكن أدمن)
+ *  - list    { filters?, page?, pageSize? } → مُرقَّم (افتراضي 25، أقصى 100 بالصفحة)
  *  - create  { data }            → أدمن فقط
  *  - update  { id, data }        → أدمن فقط
  *  - delete  { id }              → أدمن فقط (حذف ناعم)
@@ -43,8 +44,8 @@ function requireAdmin(user) {
   return user.role === 'admin';
 }
 
-async function listStudents(req, res, user, { filters = {} } = {}) {
-  let query = supabase.from('students').select('*').is('deleted_at', null);
+async function listStudents(req, res, user, { filters = {}, page, pageSize } = {}) {
+  let query = supabase.from('students').select('*', { count: 'exact' }).is('deleted_at', null);
   query = applyEmployeeScope(query, user);
 
   if (filters.branch) query = query.eq('branch', filters.branch);
@@ -55,9 +56,10 @@ async function listStudents(req, res, user, { filters = {} } = {}) {
 
   query = query.order('id', { ascending: true });
 
-  const { data, error } = await query;
+  const paged = applyPagination(query, { page, pageSize });
+  const { data, error, count } = await paged.query;
   if (error) return fail(res, 'تعذّر جلب بيانات الطلاب', 500);
-  return ok(res, data);
+  return ok(res, paginatedResult(data, count, paged.page, paged.pageSize));
 }
 
 async function createStudent(req, res, user, { data } = {}) {
