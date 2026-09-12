@@ -62,6 +62,13 @@
   box-shadow: 0 0 0 3px rgba(47,107,82,0.12);
 }
 
+.locked-field, select.locked-field, .form-group select.locked-field {
+  background: var(--paper) !important;
+  color: var(--muted) !important;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
 /* ---------- الجدول ---------- */
 .table-wrap {
   background: var(--surface);
@@ -355,10 +362,60 @@ table.data-table {
 @media print {
   .sidebar, .topbar, .mobile-bottom-nav, .sidebar-backdrop, .no-print { display: none !important; }
   .shell-main { margin-right: 0 !important; }
-  .content { padding: 0 !important; }
+  .content { padding: 0 !important; margin-top: 0 !important; }
   body { background: #fff !important; }
   .report-preview { border: none !important; box-shadow: none !important; max-width: 100% !important; }
 }
+
+/* ---------- لوحة فلاتر تقرير — أنيقة بدل التكدّس الأفقي ---------- */
+.report-filter-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.report-filter-panel > label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 12px; color: var(--muted); font-weight: 600;
+}
+.report-filter-panel select,
+.report-filter-panel input[type="text"] {
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px;
+  font-family: inherit; font-size: 13px; background: var(--paper);
+}
+.report-filter-panel .rf-search-wrap { position: relative; grid-column: 1 / -1; }
+.report-filter-panel .rf-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+/* ---------- بطاقات حسابات الدخول ---------- */
+.account-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.account-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.account-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+
+.account-card .ac-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.account-card .ac-username { font-weight: 800; color: var(--ink); font-size: 14.5px; }
+.account-card .ac-owner { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.account-card .ac-status {
+  font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+}
+.account-card .ac-status.active { background: rgba(47,107,82,0.12); color: var(--primary); }
+.account-card .ac-status.suspended { background: rgba(176,58,46,0.12); color: var(--warn); }
+.account-card .ac-date { font-size: 11px; color: var(--muted); margin-top: 10px; }
 
 /* ---------- شريط التحديد السريع + شرائح الحالة (تحضير/رصد سريع) ---------- */
 .quick-mark-bar {

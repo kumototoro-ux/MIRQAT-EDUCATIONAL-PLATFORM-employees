@@ -24,7 +24,7 @@ function mirqatIcon(key) {
 
 const MIRQAT_NAV = [
   { key: 'dashboard', label: 'لوحة التحكم', href: '/dashboard.html', ready: true, bottomNav: 'all' },
-  { key: 'students', label: 'الطلاب', href: '/students.html', ready: true, bottomNav: 'admin' },
+  { key: 'students', label: 'الطلاب', href: '/students.html', ready: true, adminOnly: true, bottomNav: 'admin' },
   { key: 'employees', label: 'الموظفون', href: '/employees.html', ready: true, adminOnly: true },
   { key: 'accounts', label: 'حسابات الدخول', href: '/accounts.html', ready: true, adminOnly: true },
   { key: 'schedule', label: 'التقويم والجدول', href: '/schedule.html', ready: true },
@@ -150,11 +150,33 @@ function mirqatToggleSidebarCollapse() {
   localStorage.setItem('mirqat_sidebar_collapsed', collapsed ? '1' : '0');
 }
 
-/* ================= بحث سريع بالبار العلوي (طلاب) ================= */
-function mirqatSetupTopbarSearch() {
+/**
+ * يقفل أي قائمة اختيار (select) لا تملك سوى قيمة واحدة فعلية — يحوّلها لعرض ثابت
+ * بدل قائمة قابلة للاختيار. يُستخدم لموظف مرتبط بقيمة واحدة فقط (فرع/مرحلة/صف واحد...).
+ */
+function mirqatLockSingleValueFields(selectIds) {
+  selectIds.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const realOptions = Array.from(select.options).filter(o => o.value);
+    if (realOptions.length === 1) {
+      select.value = realOptions[0].value;
+      select.disabled = true;
+      select.classList.add('locked-field');
+    }
+  });
+}
+
+/* ================= بحث سريع بالبار العلوي (طلاب — أدمن فقط) ================= */
+function mirqatSetupTopbarSearch(user) {
   const input = document.getElementById('topbarSearchInput');
   const results = document.getElementById('topbarSearchResults');
   if (!input || !results) return;
+
+  if (user.role !== 'admin') {
+    input.closest('.topbar-search').style.display = 'none';
+    return;
+  }
 
   // تعبئة تلقائية لو وصلنا من نتيجة بحث بصفحة أخرى
   const params = new URLSearchParams(window.location.search);
@@ -234,7 +256,7 @@ function mirqatInitShell(activeKey) {
 
   document.getElementById('logoutBtn')?.addEventListener('click', mirqatLogout);
 
-  mirqatSetupTopbarSearch();
+  mirqatSetupTopbarSearch(user);
 
   // تحقق فعلي من صلاحية الجلسة مع الخادم — يسجّل خروج تلقائي إن كانت منتهية
   mirqatApi('auth', 'session').catch(mirqatLogout);

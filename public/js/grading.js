@@ -73,9 +73,17 @@ async function init() {
     });
   });
 
-  loadStats();
-  loadOverview();
-  setupCustomFilters();
+  // الإحصائيات العامة مقيّدة على الأدمن فقط
+  if (user.role === 'admin') {
+    loadStats();
+    loadOverview();
+    setupCustomFilters();
+  } else {
+    document.querySelector('#mainTabs .tab-btn[data-main="stats"]').style.display = 'none';
+    document.getElementById('mainPanel-stats').hidden = true;
+    document.querySelector('#mainTabs .tab-btn[data-main="grading"]').classList.add('active');
+    document.getElementById('mainPanel-grading').hidden = false;
+  }
 }
 
 /* ---------------- نظرة عامة على أداء الفروع ---------------- */
@@ -456,12 +464,14 @@ function renderManual(el) {
     fillSelect('mm_stages', sf.stages);
     fillSelect('mm_grades', sf.grades);
     fillSelect('mm_sections', sf.sections);
-    fillSelect('mm_term', allLists.terms);
-    if (currentWeekInfo?.term) document.getElementById('mm_term').value = currentWeekInfo.term;
+    mirqatLockSingleValueFields(['mm_branch', 'mm_stages', 'mm_grades', 'mm_sections']);
     fillSelect('mm_eval_type', evalTypes);
     document.getElementById('mm_task_name').value = '';
     document.getElementById('mm_max_score').value = '';
     document.getElementById('manualFormError').textContent = '';
+    document.getElementById('mm_autoDateBanner').textContent = currentWeekInfo
+      ? `التاريخ محدَّد تلقائيًا: ${currentWeekInfo.term} — ${currentWeekInfo.week}`
+      : 'لا يوجد أسبوع دراسي مطابق لتاريخ اليوم — راجع الأدمن';
     document.getElementById('manualModal').hidden = false;
   });
 }
@@ -471,12 +481,14 @@ async function submitManualMeta(e) {
   const errorEl = document.getElementById('manualFormError');
   errorEl.textContent = '';
 
+  if (!currentWeekInfo) { errorEl.textContent = 'لا يوجد أسبوع دراسي حالي — راجع الأدمن'; return; }
+
   const meta = {
     branch: document.getElementById('mm_branch').value,
     stages: document.getElementById('mm_stages').value,
     grades: document.getElementById('mm_grades').value,
     sections: document.getElementById('mm_sections').value,
-    term: document.getElementById('mm_term').value,
+    term: currentWeekInfo.term,
     eval_type: document.getElementById('mm_eval_type').value,
     task_name: document.getElementById('mm_task_name').value.trim(),
     max_score: document.getElementById('mm_max_score').value
@@ -533,7 +545,7 @@ async function submitManualMeta(e) {
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
       area.innerHTML = '<p class="overview-hint">تم الحفظ ✓</p>';
-      loadStats();
+      if (user.role === 'admin') loadStats();
     } catch (err) { rErrorEl.textContent = err.message; }
   });
 }
@@ -551,12 +563,14 @@ function renderParticipation(el) {
     fillSelect('pm_stages', sf.stages);
     fillSelect('pm_grades', sf.grades);
     fillSelect('pm_sections', sf.sections);
-    fillSelect('pm_term', allLists.terms);
-    if (currentWeekInfo?.term) document.getElementById('pm_term').value = currentWeekInfo.term;
+    mirqatLockSingleValueFields(['pm_branch', 'pm_stages', 'pm_grades', 'pm_sections']);
     document.getElementById('pm_name').value = '';
     document.getElementById('pm_details').value = '';
     document.getElementById('pm_max').value = 5;
     document.getElementById('participationFormError').textContent = '';
+    document.getElementById('pm_autoDateBanner').textContent = currentWeekInfo
+      ? `تاريخ الرصد = اليوم تلقائيًا: ${currentWeekInfo.term} — ${currentWeekInfo.week}`
+      : 'لا يوجد أسبوع دراسي مطابق لتاريخ اليوم — راجع الأدمن';
     document.getElementById('participationModal').hidden = false;
   });
 }
@@ -566,12 +580,14 @@ async function submitParticipationMeta(e) {
   const errorEl = document.getElementById('participationFormError');
   errorEl.textContent = '';
 
+  if (!currentWeekInfo) { errorEl.textContent = 'لا يوجد أسبوع دراسي حالي — راجع الأدمن'; return; }
+
   const meta = {
     branch: document.getElementById('pm_branch').value,
     stages: document.getElementById('pm_stages').value,
     grades: document.getElementById('pm_grades').value,
     sections: document.getElementById('pm_sections').value,
-    term: document.getElementById('pm_term').value,
+    term: currentWeekInfo.term,
     name: document.getElementById('pm_name').value.trim(),
     details: document.getElementById('pm_details').value.trim(),
     max: document.getElementById('pm_max').value
@@ -627,7 +643,7 @@ async function submitParticipationMeta(e) {
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
       area.innerHTML = '<p class="overview-hint">تم الحفظ ✓</p>';
-      loadStats();
+      if (user.role === 'admin') loadStats();
     } catch (err) { rErrorEl.textContent = err.message; }
   });
 }

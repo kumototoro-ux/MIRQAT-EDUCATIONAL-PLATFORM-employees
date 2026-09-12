@@ -7,7 +7,8 @@ let statusChartInstance = null;
 let statusBarChartInstance = null;
 let trendChartInstance = null;
 let currentLogPage = 1;
-let manualDateAllowed = false;
+const ARABIC_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+let recordDateInfo = null; // { term, week, day } — محسوبة تلقائيًا من اللحظة الفعلية، لا يعدّلها أحد
 
 if (user) init();
 
@@ -20,23 +21,15 @@ async function init() {
     allLists = await mirqatApi('settings', 'getSettingsLists');
   } catch { allLists = {}; }
 
-  let visSettings = {};
-  try { visSettings = await mirqatApi('settings', 'getVisibilitySettings'); } catch { /* ignore */ }
-  manualDateAllowed = (visSettings.manual_date_entry || []).includes('نعم');
-
   const isAdmin = user.role === 'admin';
   fillSelect('f_branch', isAdmin ? allLists.branches : splitOwn(user.branch), isAdmin ? 'الفرع' : null);
   fillSelect('f_stages', isAdmin ? allLists.stages : splitOwn(user.stages), isAdmin ? 'المرحلة' : null);
   fillSelect('f_grades', isAdmin ? allLists.grades : splitOwn(user.grades), isAdmin ? 'الصف' : null);
   fillSelect('f_sections', isAdmin ? allLists.sections : splitOwn(user.sections), isAdmin ? 'الشعبة' : null);
   fillSelect('f_subject', isAdmin ? allLists.subject : splitOwn(user.subject), isAdmin ? 'المادة' : null);
-  fillSelect('f_term', allLists.terms, 'الترم');
 
-  if (isAdmin || manualDateAllowed) {
-    await populateManualWeekSelect();
-  } else {
-    await loadCurrentWeek();
-  }
+  await loadCurrentWeek();
+  mirqatLockSingleValueFields(['f_branch', 'f_stages', 'f_grades', 'f_sections', 'f_subject']);
 
   setupTabs();
 
@@ -70,6 +63,14 @@ async function init() {
     });
   });
 
+  // الإحصائيات العامة مقيّدة على الأدمن فقط
+  if (user.role !== 'admin') {
+    document.querySelector('#mainTabs .tab-btn[data-main="stats"]').style.display = 'none';
+    document.getElementById('mainPanel-stats').hidden = true;
+    document.querySelector('#mainTabs .tab-btn[data-main="record"]').classList.add('active');
+    document.getElementById('mainPanel-record').hidden = false;
+  }
+
   fillSelect('ef_status', allLists.attendance_statuses);
 
   if (isAdmin) {
@@ -83,9 +84,11 @@ async function init() {
   }
 
   populateWeekOptions();
-  loadStats();
-  loadOverview();
-  setupCustomFilters();
+  if (user.role === 'admin') {
+    loadStats();
+    loadOverview();
+    setupCustomFilters();
+  }
 }
 
 function fillSelect(id, options = [], placeholder = null) {
@@ -110,39 +113,22 @@ function populateWeekOptions() {
 }
 
 async function loadCurrentWeek() {
-  const hint = document.getElementById('calendarHint');
-  const weekSelect = document.getElementById('f_week');
+  const banner = document.getElementById('autoDateBanner');
+  const today = new Date();
+  const todayDayName = ARABIC_DAYS[today.getDay()];
+
   try {
     const info = await mirqatApi('schedule', 'getCurrentTermInfo', {});
     if (info) {
-      weekSelect.innerHTML = `<option value="${info.week}">${info.week}</option>`;
-      document.getElementById('f_term').value = info.term || '';
-      hint.style.display = 'block';
-      hint.textContent = `الأسبوع محدَّد تلقائيًا من التقويم الدراسي: ${info.term || ''} - ${info.week || ''}`;
+      recordDateInfo = { term: info.term, week: info.week, day: todayDayName };
+      banner.textContent = `التاريخ محدَّد تلقائيًا من اللحظة الحالية: ${todayDayName} — ${info.term} — ${info.week} (لا يمكن تعديله يدويًا)`;
     } else {
-      weekSelect.innerHTML = '<option value="">لا يوجد أسبوع</option>';
-      hint.style.display = 'block';
-      hint.textContent = 'لا يوجد أسبوع دراسي مطابق لتاريخ اليوم في التقويم — راجع الأدمن لإضافته، أو فعّل التاريخ اليدوي من الإعدادات.';
+      recordDateInfo = { term: null, week: null, day: todayDayName };
+      banner.textContent = `لا يوجد أسبوع دراسي مطابق لتاريخ اليوم في التقويم — راجع الأدمن لإضافته من الإعدادات. اليوم: ${todayDayName}`;
     }
-  } catch { /* ignore */ }
-}
-
-/** للأدمن/عند تفعيل التاريخ اليدوي: قائمة أسابيع حقيقية من التقويم (لا كتابة حرة أبدًا) */
-async function populateManualWeekSelect() {
-  const weekSelect = document.getElementById('f_week');
-  weekSelect.disabled = false;
-
-  const refresh = async () => {
-    const term = document.getElementById('f_term').value;
-    weekSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
-    const weeks = term ? await mirqatGetWeeksForTerm(term) : [];
-    weekSelect.innerHTML = weeks.length
-      ? weeks.map(w => `<option value="${w}">${w}</option>`).join('')
-      : '<option value="">لا يوجد أسابيع لهذا الترم في التقويم</option>';
-  };
-
-  document.getElementById('f_term').addEventListener('change', refresh);
-  await refresh();
+  } catch {
+    recordDateInfo = { term: null, week: null, day: todayDayName };
+  }
 }
 
 function setupTabs() {
@@ -449,9 +435,9 @@ function getRecordFilters() {
     grades: document.getElementById('f_grades').value,
     sections: document.getElementById('f_sections').value,
     subject: document.getElementById('f_subject').value,
-    term: document.getElementById('f_term').value,
-    week: document.getElementById('f_week').value.trim(),
-    day: document.getElementById('f_day').value,
+    term: recordDateInfo?.term || '',
+    week: recordDateInfo?.week || '',
+    day: recordDateInfo?.day || '',
     period: document.getElementById('f_period').value.trim()
   };
 }
@@ -485,7 +471,7 @@ async function saveRoster() {
     await mirqatApi('attendance', 'saveAttendanceRoster', { records }, { cache: false });
     document.getElementById('rosterWrap').style.display = 'none';
     document.getElementById('rosterActions').style.display = 'none';
-    loadStats();
+    if (user.role === 'admin') loadStats();
   } catch (e) {
     errorEl.textContent = e.message;
   } finally {

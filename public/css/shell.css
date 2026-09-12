@@ -129,10 +129,12 @@
   padding: 14px 28px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
+  position: fixed;
+  top: 0; left: 0; right: 248px;
   z-index: 30;
+  transition: right 0.2s ease;
 }
+.shell.sidebar-collapsed .topbar { right: 72px; }
 
 .menu-toggle {
   display: none;
@@ -280,6 +282,7 @@
   padding: 28px;
   flex: 1;
   padding-bottom: 90px; /* مساحة للبار السفلي بالجوال */
+  margin-top: 65px; /* تعويض البار العلوي الثابت (position:fixed) */
 }
 
 .page-title {
@@ -541,6 +544,7 @@
   }
   .sidebar.open { transform: translateX(0); }
   .shell-main { margin-right: 0 !important; }
+  .topbar { right: 0 !important; }
   .shell.sidebar-collapsed .sidebar { width: 248px; }
   .cards-grid { grid-template-columns: 1fr; }
   .mobile-bottom-nav { display: flex; }

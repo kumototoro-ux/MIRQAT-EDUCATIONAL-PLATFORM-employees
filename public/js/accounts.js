@@ -119,57 +119,99 @@ async function createAccount() {
   }
 }
 
-/* ---------------- قائمة الحسابات ---------------- */
+/* ---------------- قائمة الحسابات (بطاقات) ---------------- */
+let accountsCache = [];
+
 async function loadAccounts() {
-  const body = document.getElementById('accountsTableBody');
-  body.innerHTML = '<tr><td colspan="5" class="loading-row">جارٍ التحميل...</td></tr>';
+  const grid = document.getElementById('accountsGrid');
+  grid.innerHTML = '<p class="loading-row">جارٍ التحميل...</p>';
 
   try {
     await buildOwnerDirectory();
-    const accounts = await mirqatApi('auth', 'listAccounts', { kind: currentKind });
+    accountsCache = await mirqatApi('auth', 'listAccounts', { kind: currentKind });
 
-    if (!accounts.length) {
-      body.innerHTML = '<tr><td colspan="5" class="empty-state">لا يوجد حسابات بعد</td></tr>';
+    if (!accountsCache.length) {
+      grid.innerHTML = '<p class="empty-state">لا يوجد حسابات بعد</p>';
       return;
     }
 
-    body.innerHTML = accounts.map(a => {
+    grid.innerHTML = accountsCache.map(a => {
       const ownerId = currentKind === 'staff' ? a.employee_id : a.student_id;
-      const ownerName = ownerDirectory.get(ownerId) || ownerId || '—';
+      const owner = ownerDirectory.get(ownerId);
+      const ownerName = owner?.name_ar || ownerId || '—';
       const isActive = a.status === 'active';
       return `
-        <tr>
-          <td data-label="اسم المستخدم">${a.username}</td>
-          <td data-label="الاسم المرتبط">${ownerName}</td>
-          <td data-label="الحالة">${isActive ? 'نشط' : 'موقوف'}</td>
-          <td data-label="تاريخ الإنشاء">${a.created_at ? new Date(a.created_at).toLocaleDateString('ar-SA') : '—'}</td>
-          <td>
-            <div class="row-actions">
-              <button class="btn btn-outline btn-sm" onclick="toggleStatus('${a.user_id}', ${!isActive})">${isActive ? 'تعليق' : 'تفعيل'}</button>
-              <button class="btn btn-outline btn-sm" onclick="openEditModal('${a.user_id}')">تعديل</button>
-              <button class="btn btn-danger btn-sm" onclick="askDelete('${a.user_id}')">حذف</button>
+        <div class="account-card" onclick="openAccountDetail('${a.user_id}')">
+          <div class="ac-top">
+            <div>
+              <div class="ac-username">${ownerName}</div>
+              <div class="ac-owner">@${a.username}${owner?.role ? ' — ' + owner.role : ''}</div>
             </div>
-          </td>
-        </tr>
+            <span class="ac-status ${isActive ? 'active' : 'suspended'}">${isActive ? 'نشط' : 'موقوف'}</span>
+          </div>
+          <div class="ac-date">أُنشئ: ${a.created_at ? new Date(a.created_at).toLocaleDateString('ar-SA') : '—'}</div>
+        </div>
       `;
     }).join('');
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="5" class="empty-state">تعذّر تحميل الحسابات: ${e.message}</td></tr>`;
+    grid.innerHTML = `<p class="empty-state">تعذّر تحميل الحسابات: ${e.message}</p>`;
   }
 }
 
-/** يبني فهرس id -> اسم للموظفين أو الطلاب حسب التبويب الحالي، لعرض الاسم بدل المعرّف فقط */
+/** يفتح لوحة التفاصيل الكاملة (بيانات صاحب الحساب + الصلاحيات + إجراءات) */
+function openAccountDetail(userId) {
+  const account = accountsCache.find(a => a.user_id === userId);
+  if (!account) return;
+  const ownerId = currentKind === 'staff' ? account.employee_id : account.student_id;
+  const owner = ownerDirectory.get(ownerId) || {};
+  const isActive = account.status === 'active';
+
+  let bodyHtml = `
+    <div class="drawer-field"><span class="label">اسم المستخدم</span><span class="value">${account.username}</span></div>
+    <div class="drawer-field"><span class="label">الحالة</span><span class="value">${isActive ? 'نشط' : 'موقوف'}</span></div>
+    <div class="drawer-field"><span class="label">تاريخ الإنشاء</span><span class="value">${account.created_at ? new Date(account.created_at).toLocaleDateString('ar-SA') : '—'}</span></div>
+  `;
+
+  if (currentKind === 'staff') {
+    bodyHtml += `
+      <div class="drawer-field"><span class="label">الاسم</span><span class="value">${owner.name_ar || '—'}</span></div>
+      <div class="drawer-field"><span class="label">الدور / الصلاحية</span><span class="value">${owner.role === 'admin' ? 'أدمن' : owner.role || '—'}</span></div>
+      <div class="drawer-field"><span class="label">الفرع</span><span class="value">${owner.branch || '—'}</span></div>
+      <div class="drawer-field"><span class="label">المراحل</span><span class="value">${owner.stages || '—'}</span></div>
+      <div class="drawer-field"><span class="label">الصفوف</span><span class="value">${owner.grades || '—'}</span></div>
+      <div class="drawer-field"><span class="label">الشعب</span><span class="value">${owner.sections || '—'}</span></div>
+      <div class="drawer-field"><span class="label">المواد</span><span class="value">${owner.subject || '—'}</span></div>
+      <div class="drawer-field"><span class="label">حالة الموظف نفسه</span><span class="value">${owner.is_active === false ? 'غير نشط' : 'نشط'}</span></div>
+    `;
+  } else {
+    bodyHtml += `
+      <div class="drawer-field"><span class="label">اسم الطالب</span><span class="value">${owner.name_ar || '—'}</span></div>
+      <div class="drawer-field"><span class="label">الفرع</span><span class="value">${owner.branch || '—'}</span></div>
+      <div class="drawer-field"><span class="label">الصف / الشعبة</span><span class="value">${owner.grades || '—'} ${owner.sections || ''}</span></div>
+    `;
+  }
+
+  const footerHtml = `
+    <button class="btn btn-outline" onclick="toggleStatus('${account.user_id}', ${!isActive}); mirqatCloseDrawer();">${isActive ? 'تعليق الحساب' : 'تفعيل الحساب'}</button>
+    <button class="btn btn-primary" onclick="mirqatCloseDrawer(); openEditModal('${account.user_id}');">تعديل</button>
+    <button class="btn btn-danger" onclick="mirqatCloseDrawer(); askDelete('${account.user_id}');">حذف</button>
+  `;
+
+  mirqatOpenDrawer({ title: owner.name_ar || account.username, bodyHtml, footerHtml });
+}
+
+/** يبني فهرس id -> بيانات كاملة للموظفين أو الطلاب حسب التبويب الحالي */
 async function buildOwnerDirectory() {
   ownerDirectory = new Map();
   try {
     if (currentKind === 'staff') {
       const employees = await mirqatApi('employees', 'list', { filters: {}, page: 1, pageSize: 100 });
-      employees.rows.forEach(e => ownerDirectory.set(e.id, e.name_ar));
+      employees.rows.forEach(e => ownerDirectory.set(e.id, e));
     } else {
       const res = await mirqatApi('students', 'list', { filters: {}, page: 1, pageSize: 100 });
-      res.rows.forEach(s => ownerDirectory.set(s.id, s.name_ar));
+      res.rows.forEach(s => ownerDirectory.set(s.id, s));
     }
-  } catch { /* يبقى فارغًا، سيُعرض المعرّف فقط */ }
+  } catch { /* يبقى فارغًا */ }
 }
 
 /* ---------------- تعديل ---------------- */

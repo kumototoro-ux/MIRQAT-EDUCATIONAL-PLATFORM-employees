@@ -130,8 +130,9 @@ async function getAttendanceRecords(req, res, user, { filters = {}, page, pageSi
   return ok(res, paginatedResult(editableRows, count, paged.page, paged.pageSize));
 }
 
-/* ---------------- إحصائيات سريعة (عدّ فقط — بلا جلب صفوف) للأسبوع الدراسي الحالي ---------------- */
+/* ---------------- إحصائيات سريعة (عدّ فقط — بلا جلب صفوف) للأسبوع الدراسي الحالي — أدمن فقط ---------------- */
 async function getStats(req, res, user) {
+  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const currentWeek = await resolveCurrentWeek();
 
   let previousWeek = null;
@@ -176,6 +177,7 @@ async function getStats(req, res, user) {
 
 /* ---------------- نظرة عامة على كل الفروع (من أول أسبوع لآخر أسبوع حالي) — استعلام واحد فقط ---------------- */
 async function getOverview(req, res, user) {
+  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
   const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
   const branches = (branchRows || []).map(r => r.value);
@@ -211,6 +213,7 @@ async function getOverview(req, res, user) {
 
 /* ---------------- إحصائيات مخصصة حسب فلتر محدد — استعلام واحد فقط ---------------- */
 async function getFilteredStats(req, res, user, { branch, term, week, day, grades } = {}) {
+  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const { data: statusRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'attendance_statuses');
   const statuses = (statusRows || []).map(r => r.value);
 

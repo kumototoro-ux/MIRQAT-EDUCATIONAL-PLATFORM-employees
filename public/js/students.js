@@ -6,7 +6,13 @@ let currentPage = 1;
 let studentsCache = [];
 let gradesChartInstance = null;
 
-if (user) init();
+if (user) {
+  if (user.role !== 'admin') {
+    document.querySelector('.content').innerHTML = '<p class="empty-state">هذه الصفحة تتطلب صلاحية أدمن</p>';
+  } else {
+    init();
+  }
+}
 
 async function init() {
   if (user.role === 'admin') {

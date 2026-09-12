@@ -162,6 +162,7 @@ async function getGradingRecords(req, res, user, { filters = {}, page, pageSize 
 
 /* ---------------- إحصائيات سريعة (عدّ فقط) — تظهر فورًا بلا اختيار معلم/مادة ---------------- */
 async function getStats(req, res, user) {
+  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const currentWeek = await resolveCurrentWeek();
 
   let previousWeek = null;
@@ -208,6 +209,7 @@ async function getStats(req, res, user) {
 
 /* ---------------- نظرة عامة على كل الفروع: متوسط الأداء الفعلي — استعلام واحد فقط ---------------- */
 async function getOverview(req, res, user) {
+  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
   const branches = (branchRows || []).map(r => r.value);
 
@@ -241,6 +243,7 @@ async function getOverview(req, res, user) {
 
 /* ---------------- إحصائيات مخصصة حسب فلتر محدد ---------------- */
 async function getFilteredStats(req, res, user, { branch, term, week, subject, grades } = {}) {
+  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   let q = supabase.from('daily_follow_up').select('earned_score, max_score, eval_type');
   q = scopeToOwner(q, user);
   if (branch) q = q.eq('branch', branch);

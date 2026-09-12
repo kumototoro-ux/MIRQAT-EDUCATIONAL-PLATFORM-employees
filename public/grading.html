@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | رصد الدرجات</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=10">
-<link rel="stylesheet" href="/css/components.css?v=9">
+<link rel="stylesheet" href="/css/shell.css?v=11">
+<link rel="stylesheet" href="/css/components.css?v=10">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
@@ -188,10 +188,8 @@
             <div class="form-group"><label>الصف</label><select id="mm_grades"></select></div>
             <div class="form-group"><label>الشعبة</label><select id="mm_sections"></select></div>
           </div>
-          <div class="form-row">
-            <div class="form-group"><label>الترم</label><select id="mm_term"></select></div>
-            <div class="form-group"><label>نوع التقييم</label><select id="mm_eval_type"></select></div>
-          </div>
+          <div class="form-group"><label>نوع التقييم</label><select id="mm_eval_type"></select></div>
+          <div class="overview-hint" id="mm_autoDateBanner" style="margin:0;"></div>
           <div class="form-group"><label>اسم التكليف/الجلسة</label><input type="text" id="mm_task_name" required></div>
           <div class="form-group"><label>الدرجة العظمى</label><input type="number" id="mm_max_score" min="0" required></div>
           <p class="form-error" id="manualFormError"></p>
@@ -220,11 +218,8 @@
             <div class="form-group"><label>الصف</label><select id="pm_grades"></select></div>
             <div class="form-group"><label>الشعبة</label><select id="pm_sections"></select></div>
           </div>
-          <div class="form-row">
-            <div class="form-group"><label>الترم</label><select id="pm_term"></select></div>
-            <div class="form-group"><label>الدرجة العظمى</label><input type="number" id="pm_max" min="0" value="5" required></div>
-          </div>
-          <p class="overview-hint" style="margin:0;">تاريخ الرصد = اليوم تلقائيًا</p>
+          <div class="form-group"><label>الدرجة العظمى</label><input type="number" id="pm_max" min="0" value="5" required></div>
+          <div class="overview-hint" id="pm_autoDateBanner" style="margin:0;">تاريخ الرصد = اليوم تلقائيًا</div>
           <p class="form-error" id="participationFormError"></p>
         </form>
       </div>
@@ -235,7 +230,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=9"></script>
-  <script src="/js/grading.js?v=9"></script>
+  <script src="/js/shell.js?v=10"></script>
+  <script src="/js/grading.js?v=10"></script>
 </body>
 </html>
