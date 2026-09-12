@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>مِرقاة | الطلاب</title>
+<link rel="stylesheet" href="/styles.css?v=4">
+<link rel="stylesheet" href="/css/shell.css?v=2">
+<link rel="stylesheet" href="/css/components.css?v=1">
+</head>
+<body>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <h1 class="page-title">الطلاب</h1>
+
+        <div class="toolbar">
+          <input type="text" id="searchInput" placeholder="ابحث بالاسم أو المعرّف...">
+          <select id="filterBranch"><option value="">كل الفروع</option></select>
+          <select id="filterStage"><option value="">كل المراحل</option></select>
+          <select id="filterGrade"><option value="">كل الصفوف</option></select>
+          <select id="filterSection"><option value="">كل الشعب</option></select>
+          <div class="spacer"></div>
+          <button class="btn btn-primary" id="addStudentBtn" style="display:none">+ إضافة طالب</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>المعرّف</th>
+                <th>الاسم</th>
+                <th>الفرع</th>
+                <th>المرحلة</th>
+                <th>الصف</th>
+                <th>الشعبة</th>
+                <th>حالة الرسوم</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="studentsTableBody">
+              <tr><td colspan="8" class="loading-row">جارٍ التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- نافذة إضافة/تعديل طالب -->
+  <div class="modal-overlay" id="studentModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="studentModalTitle">إضافة طالب</h2>
+        <button class="modal-close" id="closeStudentModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="studentForm">
+          <div class="form-group">
+            <label for="f_name_ar">اسم الطالب</label>
+            <input type="text" id="f_name_ar" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f_branch">الفرع</label>
+              <select id="f_branch"></select>
+            </div>
+            <div class="form-group">
+              <label for="f_stages">المرحلة</label>
+              <select id="f_stages"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f_grades">الصف</label>
+              <select id="f_grades"></select>
+            </div>
+            <div class="form-group">
+              <label for="f_sections">الشعبة</label>
+              <select id="f_sections"></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="f_national_id">رقم الهوية (اختياري)</label>
+            <input type="text" id="f_national_id">
+          </div>
+          <p class="form-error" id="studentFormError"></p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" form="studentForm" class="btn btn-primary" id="saveStudentBtn">حفظ</button>
+        <button type="button" class="btn btn-outline" id="cancelStudentBtn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تأكيد الحذف -->
+  <div class="modal-overlay" id="confirmModal" hidden>
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header">
+        <h2>تأكيد الحذف</h2>
+        <button class="modal-close" id="closeConfirmModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-message" id="confirmMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="confirmDeleteBtn">حذف نهائيًا</button>
+        <button class="btn btn-outline" id="cancelConfirmBtn">تراجع</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/shell.js?v=2"></script>
+  <script src="/js/students.js?v=1"></script>
+</body>
+</html>
