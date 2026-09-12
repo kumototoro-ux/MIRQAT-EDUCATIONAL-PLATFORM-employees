@@ -203,6 +203,124 @@
 .card-trend.down::before { content: '↓ '; }
 .card-trend.down { background: rgba(255,255,255,0.12); }
 
+/* ---------- تقويم شهري ---------- */
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.month-nav h2 { margin: 0; font-size: 16px; color: var(--primary-dark); }
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.month-grid .day-name {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding-bottom: 6px;
+}
+
+.month-cell {
+  min-height: 78px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  background: var(--surface);
+  font-size: 11px;
+  overflow: hidden;
+  position: relative;
+}
+
+.month-cell.muted { opacity: 0.35; }
+.month-cell.today { border: 2px solid var(--primary); }
+.month-cell .day-num { font-weight: 700; font-size: 13px; color: var(--ink); }
+.month-cell .day-event {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #fff;
+  background: var(--cell-color, var(--muted));
+  border-radius: 6px;
+  padding: 2px 5px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.month-cell.non-school { background: var(--paper); }
+
+/* ---------- عرض أسبوعي ---------- */
+.week-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.week-card-header {
+  padding: 12px 18px;
+  color: #fff;
+  background: var(--cell-color, var(--primary));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.week-card-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.week-day-cell {
+  background: var(--surface);
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.week-day-cell .wd-name { font-weight: 700; color: var(--primary-dark); }
+.week-day-cell .wd-date { color: var(--muted); font-size: 11px; margin: 2px 0 6px; }
+
+/* ---------- شبكة جدول الحصص ---------- */
+.timetable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.timetable-day-col h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--primary-dark);
+  text-align: center;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--line);
+}
+
+.period-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.period-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+.period-card .p-subject { font-weight: 700; font-size: 13px; color: var(--ink); }
+.period-card .p-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
 .card.skeleton {
   height: 110px;
   background: linear-gradient(90deg, #e5e3dc 25%, #efeee8 50%, #e5e3dc 75%);

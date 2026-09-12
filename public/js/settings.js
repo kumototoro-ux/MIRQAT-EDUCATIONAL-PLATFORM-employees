@@ -47,6 +47,287 @@ async function init() {
   buildCheckboxGroup('vis_grades', allLists.grades);
   document.getElementById('saveVisibilityBtn').addEventListener('click', saveVisibility);
   loadVisibility();
+
+  /* ---- التقويم والجدول ---- */
+  setupScheduleSubTabs();
+  fillSelect('cal_termFilter', allLists.terms, 'كل الترمات');
+  document.getElementById('cal_termFilter').addEventListener('change', loadScheduleCalendar);
+  document.getElementById('addCalendarBtn').addEventListener('click', () => openCalendarModal());
+  document.getElementById('closeCalendarModal').addEventListener('click', () => { document.getElementById('calendarModal').hidden = true; });
+  document.getElementById('cancelCalendarBtn').addEventListener('click', () => { document.getElementById('calendarModal').hidden = true; });
+  document.getElementById('calendarForm').addEventListener('submit', submitCalendarForm);
+  fillSelect('cf_term', allLists.terms);
+
+  fillSelect('tt_branch', allLists.branches, 'الفرع');
+  fillSelect('tt_grade', allLists.grades, 'الصف');
+  fillSelect('tt_section', allLists.sections, 'الشعبة');
+  document.getElementById('filterTimetableBtn').addEventListener('click', loadScheduleTimetable);
+  document.getElementById('addTimetableBtn').addEventListener('click', () => openTimetableModal());
+  document.getElementById('closeTimetableModal').addEventListener('click', () => { document.getElementById('timetableModal').hidden = true; });
+  document.getElementById('cancelTimetableBtn').addEventListener('click', () => { document.getElementById('timetableModal').hidden = true; });
+  document.getElementById('timetableForm').addEventListener('submit', submitTimetableForm);
+  document.getElementById('ttf_employeeSearch').addEventListener('input', debounce(searchEmployeesForTimetable, 300));
+  fillSelect('ttf_branch', allLists.branches);
+  fillSelect('ttf_stage', allLists.stages);
+  fillSelect('ttf_grade', allLists.grades);
+  fillSelect('ttf_section', allLists.sections);
+  fillSelect('ttf_subject', allLists.subject);
+
+  document.getElementById('closeScheduleConfirmModal').addEventListener('click', closeScheduleConfirmModal);
+  document.getElementById('cancelScheduleConfirmBtn').addEventListener('click', closeScheduleConfirmModal);
+  document.getElementById('confirmScheduleDeleteBtn').addEventListener('click', performScheduleDelete);
+
+  loadScheduleCalendar();
+  loadScheduleTimetable();
+}
+
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+function setupScheduleSubTabs() {
+  document.querySelectorAll('#panel-schedule > .tabs > .tab-btn[data-schedview]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#panel-schedule > .tabs > .tab-btn[data-schedview]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('schedview-calendar').hidden = btn.dataset.schedview !== 'calendar';
+      document.getElementById('schedview-timetable').hidden = btn.dataset.schedview !== 'timetable';
+    });
+  });
+}
+
+/* ================= التقويم الدراسي (CRUD) ================= */
+let calendarCache = [];
+let editingCalendarId = null;
+
+async function loadScheduleCalendar() {
+  const body = document.getElementById('calendarTableBody');
+  body.innerHTML = '<tr><td colspan="8" class="loading-row">جارٍ التحميل...</td></tr>';
+  const term = document.getElementById('cal_termFilter').value || undefined;
+
+  try {
+    calendarCache = await mirqatApi('schedule', 'getCalendar', { term });
+    if (!calendarCache.length) { body.innerHTML = '<tr><td colspan="8" class="empty-state">لا يوجد أسابيع مضافة</td></tr>'; return; }
+
+    body.innerHTML = calendarCache.map(c => `
+      <tr>
+        <td data-label="الترم">${c.term || '—'}</td>
+        <td data-label="الفترة">${c.period || '—'}</td>
+        <td data-label="الأسبوع">${c.week || '—'}</td>
+        <td data-label="البداية">${c.week_start_date || '—'}</td>
+        <td data-label="النهاية">${c.week_end_date || '—'}</td>
+        <td data-label="الحدث">${c.event || '—'}</td>
+        <td data-label="اللون"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${c.color || '#ccc'};"></span></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-outline btn-sm" onclick="editCalendarRow(${c.id})">تعديل</button>
+            <button class="btn btn-danger btn-sm" onclick="askScheduleDelete('calendar', ${c.id}, 'أسبوع ${c.week || ''}')">حذف</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="8" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
+  }
+}
+
+function editCalendarRow(id) {
+  const c = calendarCache.find(x => x.id === id);
+  if (c) openCalendarModal(c);
+}
+
+function openCalendarModal(row = null) {
+  editingCalendarId = row ? row.id : null;
+  document.getElementById('calendarModalTitle').textContent = row ? 'تعديل أسبوع' : 'إضافة أسبوع';
+  document.getElementById('cf_term').value = row?.term || '';
+  document.getElementById('cf_period').value = row?.period || '';
+  document.getElementById('cf_week').value = row?.week || '';
+  document.getElementById('cf_start').value = row?.week_start_date || '';
+  document.getElementById('cf_end').value = row?.week_end_date || '';
+  document.getElementById('cf_event').value = row?.event || '';
+  document.getElementById('cf_color').value = row?.color || '#356854';
+  document.getElementById('calendarFormError').textContent = '';
+  document.getElementById('calendarModal').hidden = false;
+}
+
+async function submitCalendarForm(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('calendarFormError');
+  errorEl.textContent = '';
+
+  const data = {
+    term: document.getElementById('cf_term').value || null,
+    period: document.getElementById('cf_period').value.trim() || null,
+    week: document.getElementById('cf_week').value.trim() || null,
+    week_start_date: document.getElementById('cf_start').value || null,
+    week_end_date: document.getElementById('cf_end').value || null,
+    event: document.getElementById('cf_event').value.trim() || null,
+    color: document.getElementById('cf_color').value || null
+  };
+
+  const saveBtn = document.getElementById('saveCalendarBtn');
+  saveBtn.disabled = true;
+  try {
+    await mirqatApi('schedule', 'saveCalendarEvent', editingCalendarId ? { id: editingCalendarId, data } : { data }, { cache: false });
+    document.getElementById('calendarModal').hidden = true;
+    loadScheduleCalendar();
+  } catch (e) {
+    errorEl.textContent = e.message;
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+/* ================= الحصص والاختبارات (CRUD) ================= */
+let timetableCache = [];
+let editingTimetableId = null;
+let selectedTimetableEmployee = null;
+
+async function loadScheduleTimetable() {
+  const body = document.getElementById('timetableTableBody');
+  body.innerHTML = '<tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr>';
+
+  const type = document.getElementById('tt_type').value || undefined;
+  const filters = {
+    branch: document.getElementById('tt_branch').value || undefined,
+    grade: document.getElementById('tt_grade').value || undefined,
+    section: document.getElementById('tt_section').value || undefined
+  };
+
+  try {
+    timetableCache = await mirqatApi('schedule', 'getTimetable', { type, filters });
+    if (!timetableCache.length) { body.innerHTML = '<tr><td colspan="7" class="empty-state">لا يوجد حصص/اختبارات مطابقة</td></tr>'; return; }
+
+    body.innerHTML = timetableCache.map(t => `
+      <tr>
+        <td data-label="النوع">${t.entry_type || '—'}</td>
+        <td data-label="اليوم">${t.day || '—'}</td>
+        <td data-label="الوقت">${t.exam_date ? (t.exam_date + ' — ' + (t.exam_time || '')) : (t.exam_time || '—')}</td>
+        <td data-label="المادة">${t.subject || '—'}</td>
+        <td data-label="الصف">${t.grade || '—'} ${t.section || ''}</td>
+        <td data-label="المعلم">${t.employee_name || '—'}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-outline btn-sm" onclick="editTimetableRow(${t.id})">تعديل</button>
+            <button class="btn btn-danger btn-sm" onclick="askScheduleDelete('timetable', ${t.id}, '${(t.subject || 'حصة').replace(/'/g, "\\'")}')">حذف</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="7" class="empty-state">تعذّر التحميل: ${e.message}</td></tr>`;
+  }
+}
+
+function editTimetableRow(id) {
+  const t = timetableCache.find(x => x.id === id);
+  if (t) openTimetableModal(t);
+}
+
+function openTimetableModal(row = null) {
+  editingTimetableId = row ? row.id : null;
+  selectedTimetableEmployee = row ? { id: row.employee_id, name: row.employee_name } : null;
+  document.getElementById('timetableModalTitle').textContent = row ? 'تعديل حصة/اختبار' : 'إضافة حصة/اختبار';
+  document.getElementById('ttf_entry_type').value = row?.entry_type || 'جدول حصص';
+  document.getElementById('ttf_branch').value = row?.branch || '';
+  document.getElementById('ttf_stage').value = row?.stage || '';
+  document.getElementById('ttf_grade').value = row?.grade || '';
+  document.getElementById('ttf_section').value = row?.section || '';
+  document.getElementById('ttf_day').value = row?.day || 'الأحد';
+  document.getElementById('ttf_period_number').value = row?.period_number || '';
+  document.getElementById('ttf_time').value = row?.exam_time || '';
+  document.getElementById('ttf_exam_date').value = row?.exam_date || '';
+  document.getElementById('ttf_exam_period').value = row?.exam_period || '';
+  document.getElementById('ttf_subject').value = row?.subject || '';
+  document.getElementById('ttf_employeeSearch').value = row?.employee_name || '';
+  document.getElementById('ttf_employee_id').value = row?.employee_id || '';
+  document.getElementById('ttf_selectedEmployee').textContent = row?.employee_name ? `المحدد: ${row.employee_name}` : '';
+  document.getElementById('ttf_employeeResults').innerHTML = '';
+  document.getElementById('timetableFormError').textContent = '';
+  document.getElementById('timetableModal').hidden = false;
+}
+
+async function searchEmployeesForTimetable() {
+  const q = document.getElementById('ttf_employeeSearch').value.trim();
+  const results = document.getElementById('ttf_employeeResults');
+  if (q.length < 2) { results.innerHTML = ''; return; }
+  try {
+    const res = await mirqatApi('employees', 'list', { filters: { search: q } });
+    results.innerHTML = res.rows.slice(0, 8).map(e =>
+      `<span class="chip" style="cursor:pointer" onclick="selectTimetableEmployee('${e.id}', '${e.name_ar.replace(/'/g, "\\'")}')">${e.name_ar}</span>`
+    ).join('') || '<span class="chip">لا نتائج</span>';
+  } catch { /* silent */ }
+}
+
+function selectTimetableEmployee(id, name) {
+  selectedTimetableEmployee = { id, name };
+  document.getElementById('ttf_employee_id').value = id;
+  document.getElementById('ttf_employeeSearch').value = name;
+  document.getElementById('ttf_selectedEmployee').textContent = `المحدد: ${name}`;
+  document.getElementById('ttf_employeeResults').innerHTML = '';
+}
+
+async function submitTimetableForm(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById('timetableFormError');
+  errorEl.textContent = '';
+
+  const data = {
+    entry_type: document.getElementById('ttf_entry_type').value,
+    branch: document.getElementById('ttf_branch').value || null,
+    stage: document.getElementById('ttf_stage').value || null,
+    grade: document.getElementById('ttf_grade').value || null,
+    section: document.getElementById('ttf_section').value || null,
+    day: document.getElementById('ttf_day').value,
+    period_number: document.getElementById('ttf_period_number').value || null,
+    exam_time: document.getElementById('ttf_time').value.trim() || null,
+    exam_date: document.getElementById('ttf_exam_date').value || null,
+    exam_period: document.getElementById('ttf_exam_period').value.trim() || null,
+    subject: document.getElementById('ttf_subject').value || null,
+    employee_id: document.getElementById('ttf_employee_id').value || null,
+    employee_name: selectedTimetableEmployee?.name || null
+  };
+
+  const saveBtn = document.getElementById('saveTimetableBtn');
+  saveBtn.disabled = true;
+  try {
+    await mirqatApi('schedule', 'saveTimetableEntry', editingTimetableId ? { id: editingTimetableId, data } : { data }, { cache: false });
+    document.getElementById('timetableModal').hidden = true;
+    loadScheduleTimetable();
+  } catch (e) {
+    errorEl.textContent = e.message;
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+/* ================= حذف مشترك (تقويم/جدول) ================= */
+let scheduleDeleteTarget = null;
+
+function askScheduleDelete(kind, id, label) {
+  scheduleDeleteTarget = { kind, id };
+  document.getElementById('scheduleConfirmMessage').textContent = `سيتم حذف "${label}" نهائيًا.`;
+  document.getElementById('scheduleConfirmModal').hidden = false;
+}
+
+function closeScheduleConfirmModal() {
+  document.getElementById('scheduleConfirmModal').hidden = true;
+  scheduleDeleteTarget = null;
+}
+
+async function performScheduleDelete() {
+  if (!scheduleDeleteTarget) return;
+  try {
+    if (scheduleDeleteTarget.kind === 'calendar') {
+      await mirqatApi('schedule', 'deleteCalendarEvent', { id: scheduleDeleteTarget.id }, { cache: false });
+      closeScheduleConfirmModal();
+      loadScheduleCalendar();
+    } else {
+      await mirqatApi('schedule', 'deleteTimetableEntry', { id: scheduleDeleteTarget.id }, { cache: false });
+      closeScheduleConfirmModal();
+      loadScheduleTimetable();
+    }
+  } catch (e) {
+    alert('تعذّر الحذف: ' + e.message);
+  }
 }
 
 function setupTabs() {
