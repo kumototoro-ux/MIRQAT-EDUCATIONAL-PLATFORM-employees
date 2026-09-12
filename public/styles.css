@@ -59,6 +59,33 @@ input {
   font-size: 15px;
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-left: 40px;
+}
+
+.toggle-password {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  width: auto;
+  margin: 0;
+  padding: 4px;
+  color: #999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password:hover { background: none; color: var(--primary); }
+
 input:focus {
   outline: none;
   border-color: var(--primary);
