@@ -108,7 +108,7 @@ async function getRecent(req, res, user, { limit } = {}) {
   return ok(res, data);
 }
 
-
+async function createStudent(req, res, user, { data } = {}) {
   if (!requireAdmin(user)) return fail(res, 'هذا الإجراء يتطلب صلاحية أدمن', 403);
   if (!data || !data.name_ar) return fail(res, 'اسم الطالب مطلوب', 400);
 
