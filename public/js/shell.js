@@ -10,7 +10,7 @@ const MIRQAT_NAV = [
   { key: 'schedule', label: 'التقويم والجدول', href: '/schedule.html', ready: false },
   { key: 'attendance', label: 'التحضير والغياب', href: '/attendance.html', ready: true },
   { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: true },
-  { key: 'grading', label: 'رصد الدرجات', href: '/grading.html', ready: false },
+  { key: 'grading', label: 'رصد الدرجات', href: '/grading.html', ready: true },
   { key: 'behavior', label: 'السلوك', href: '/behavior.html', ready: false },
   { key: 'reports', label: 'التقارير', href: '/reports.html', ready: false },
   { key: 'audit', label: 'سجل التتبع', href: '/audit.html', ready: false, adminOnly: true },
