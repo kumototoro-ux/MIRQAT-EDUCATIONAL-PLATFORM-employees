@@ -269,3 +269,28 @@ table.data-table {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ---------- تبويبات ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+
+.tab-btn {
+  width: auto;
+  margin: 0;
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tab-btn.active { color: var(--primary-dark); border-bottom-color: var(--primary); }
+.tab-panel[hidden] { display: none; }
