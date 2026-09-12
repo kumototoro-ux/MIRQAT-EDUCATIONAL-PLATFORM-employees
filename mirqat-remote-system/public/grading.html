@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>مِرقاة | رصد الدرجات</title>
+<link rel="stylesheet" href="/styles.css?v=5">
+<link rel="stylesheet" href="/css/shell.css?v=3">
+<link rel="stylesheet" href="/css/components.css?v=6">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <h1 class="page-title">رصد الدرجات</h1>
+
+        <!-- أدمن فقط: اختيار الفرع ثم المعلم -->
+        <div class="toolbar" id="adminPicker" style="display:none;">
+          <select id="admin_branch"><option value="">اختر الفرع</option></select>
+          <input type="text" id="admin_teacherSearch" placeholder="ابحث عن معلم...">
+          <div class="chip-list" id="admin_teacherResults"></div>
+        </div>
+        <p id="adminSelectedTeacher" style="color:var(--primary); font-size:13px; display:none;"></p>
+
+        <!-- تبويبات المواد (تُبنى ديناميكيًا) -->
+        <div class="tabs" id="subjectTabs"></div>
+
+        <!-- تبويبات فرعية -->
+        <div class="tabs" id="subTabs" style="display:none;">
+          <button class="sub-tab-btn active" data-sub="fromTask">رصد من تكليف</button>
+          <button class="sub-tab-btn" data-sub="manual">رصد يدوي</button>
+          <button class="sub-tab-btn" data-sub="participation">مشاركة وتفاعل فوري</button>
+          <button class="sub-tab-btn" data-sub="log">سجل الرصد</button>
+          <button class="sub-tab-btn" data-sub="finished">آخر أسبوع منتهٍ</button>
+        </div>
+
+        <div id="subjectContent"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- نافذة تعديل درجة -->
+  <div class="modal-overlay" id="editModal" hidden>
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header"><h2>تعديل الدرجة</h2><button class="modal-close" id="closeEditModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>الدرجة المستحقة الجديدة</label><input type="number" id="ef_score" min="0"></div>
+        <p class="form-error" id="editFormError"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="saveEditBtn">حفظ</button>
+        <button class="btn btn-outline" id="cancelEditBtn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تأكيد الحذف -->
+  <div class="modal-overlay" id="confirmModal" hidden>
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header"><h2>تأكيد الحذف</h2><button class="modal-close" id="closeConfirmModal">✕</button></div>
+      <div class="modal-body"><p class="confirm-message">سيتم حذف هذه الدرجة نهائيًا، وسيُعاد حساب تجميع درجات الطالب تلقائيًا.</p></div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="confirmDeleteBtn">حذف نهائيًا</button>
+        <button class="btn btn-outline" id="cancelConfirmBtn">تراجع</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .tabs.sub { border-bottom: 1px solid var(--line); margin: 4px 0 18px; }
+    .sub-tab-btn {
+      width: auto; margin: 0 0 -1px; padding: 8px 14px; background: none; border: none;
+      border-bottom: 2px solid transparent; font-family: inherit; font-size: 13px; font-weight: 600;
+      color: var(--muted); cursor: pointer;
+    }
+    .sub-tab-btn.active { color: var(--primary-dark); border-bottom-color: var(--gold); }
+  </style>
+
+  <script src="/js/shell.js?v=4"></script>
+  <script src="/js/grading.js?v=4"></script>
+</body>
+</html>

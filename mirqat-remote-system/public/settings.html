@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>مِرقاة | الإعدادات</title>
+<link rel="stylesheet" href="/styles.css?v=5">
+<link rel="stylesheet" href="/css/shell.css?v=3">
+<link rel="stylesheet" href="/css/components.css?v=6">
+</head>
+<body>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main class="content" id="mainContent">
+        <h1 class="page-title">الإعدادات</h1>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="lists">القوائم</button>
+          <button class="tab-btn" data-tab="school">معلومات المدرسة</button>
+          <button class="tab-btn" data-tab="matrix">توزيع المواد</button>
+          <button class="tab-btn" data-tab="distribution">توزيع الدرجات</button>
+          <button class="tab-btn" data-tab="visibility">الظهور</button>
+        </div>
+
+        <!-- ============ القوائم ============ -->
+        <section class="tab-panel" id="panel-lists">
+          <div class="toolbar">
+            <select id="listKeySelect">
+              <option value="branches">الفروع</option>
+              <option value="stages">المراحل</option>
+              <option value="grades">الصفوف</option>
+              <option value="sections">الشعب</option>
+              <option value="subject">المواد</option>
+              <option value="user_types">أنواع المستخدمين</option>
+              <option value="roles">الأدوار</option>
+              <option value="account_statuses">حالات الحساب</option>
+              <option value="attendance_statuses">حالات الحضور</option>
+              <option value="terms">الترمات</option>
+              <option value="behavior_statuses">حالات السلوك</option>
+              <option value="continuous_eval_types">نوع التقييم المستمر</option>
+              <option value="exam_types">أنواع الاختبارات</option>
+            </select>
+          </div>
+          <div class="chip-list" id="listItems" style="margin-bottom:14px;"></div>
+          <div class="toolbar">
+            <input type="text" id="newItemInput" placeholder="عنصر جديد...">
+            <button class="btn btn-primary btn-sm" id="addItemBtn">إضافة</button>
+          </div>
+        </section>
+
+        <!-- ============ معلومات المدرسة ============ -->
+        <section class="tab-panel" id="panel-school" hidden>
+          <form id="schoolForm" style="max-width:420px">
+            <div class="form-group"><label>اسم المدرسة</label><input type="text" id="sf_name" required></div>
+            <div class="form-group"><label>رابط الشعار (رابط صورة مباشر، ليس رابط ألبوم)</label><input type="text" id="sf_logo"></div>
+            <button type="submit" class="btn btn-primary">حفظ</button>
+            <p class="form-error" id="schoolFormError"></p>
+          </form>
+        </section>
+
+        <!-- ============ توزيع المواد ============ -->
+        <section class="tab-panel" id="panel-matrix" hidden>
+          <div class="toolbar">
+            <select id="mx_branch"></select>
+            <select id="mx_stages"></select>
+            <select id="mx_grades"></select>
+            <select id="mx_sections"></select>
+            <select id="mx_subject"></select>
+            <button class="btn btn-primary btn-sm" id="addMatrixBtn">إضافة صف</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>الفرع</th><th>المرحلة</th><th>الصف</th><th>الشعبة</th><th>المادة</th><th></th></tr></thead>
+              <tbody id="matrixTableBody"><tr><td colspan="6" class="loading-row">جارٍ التحميل...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============ توزيع الدرجات ============ -->
+        <section class="tab-panel" id="panel-distribution" hidden>
+          <div class="toolbar">
+            <select id="gd_subject"></select>
+            <select id="gd_eval_type"></select>
+            <input type="number" id="gd_percentage" placeholder="النسبة" style="max-width:100px" min="0" max="100">
+            <button class="btn btn-primary btn-sm" id="addDistBtn">إضافة</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>المادة</th><th>نوع التقييم</th><th>النسبة</th><th></th></tr></thead>
+              <tbody id="distTableBody"><tr><td colspan="4" class="loading-row">جارٍ التحميل...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============ الظهور ============ -->
+        <section class="tab-panel" id="panel-visibility" hidden>
+          <div class="form-group">
+            <label>الصفوف التي تظهر نتائجها لأولياء الأمور (التحكم بعرض النتائج)</label>
+            <div class="checkbox-group" id="vis_results"></div>
+          </div>
+          <div class="form-group">
+            <label>الصفوف التي تظهر درجاتها التفصيلية (التحكم بعرض الدرجات)</label>
+            <div class="checkbox-group" id="vis_grades"></div>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="vis_manual_date" style="width:auto"> السماح لكل الموظفين بتحديد تاريخ/أسبوع التحضير والرصد يدويًا (بدل ربطه إجباريًا بالتقويم الدراسي)</label>
+          </div>
+          <button class="btn btn-primary" id="saveVisibilityBtn">حفظ إعدادات الظهور</button>
+          <p class="form-error" id="visibilityError"></p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/shell.js?v=4"></script>
+  <script src="/js/settings.js?v=1"></script>
+</body>
+</html>

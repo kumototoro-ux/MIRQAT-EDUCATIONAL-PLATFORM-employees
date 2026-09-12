@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>مِرقاة | التقويم والجدول</title>
+<link rel="stylesheet" href="/styles.css?v=5">
+<link rel="stylesheet" href="/css/shell.css?v=3">
+<link rel="stylesheet" href="/css/components.css?v=6">
+</head>
+<body>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <h1 class="page-title">التقويم والجدول الدراسي</h1>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="calendar">التقويم الدراسي</button>
+          <button class="tab-btn" data-tab="timetable">جدول الحصص والاختبارات</button>
+        </div>
+
+        <!-- ============ التقويم ============ -->
+        <section class="tab-panel" id="panel-calendar">
+          <div class="toolbar">
+            <select id="cal_termFilter"><option value="">كل الترمات</option></select>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="addCalendarBtn">+ إضافة أسبوع</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>الترم</th><th>الفترة</th><th>الأسبوع</th><th>البداية</th><th>النهاية</th><th>الحدث</th><th></th></tr></thead>
+              <tbody id="calendarTableBody"><tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============ الجدول ============ -->
+        <section class="tab-panel" id="panel-timetable" hidden>
+          <div class="toolbar">
+            <select id="tt_type">
+              <option value="">كل الأنواع</option>
+              <option value="جدول حصص">جدول حصص</option>
+              <option value="جدول اختبار">جدول اختبار</option>
+            </select>
+            <select id="tt_branch"></select>
+            <select id="tt_stage"></select>
+            <select id="tt_grade"></select>
+            <select id="tt_section"></select>
+            <button class="btn btn-outline" id="filterTimetableBtn">تصفية</button>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="addTimetableBtn">+ إضافة حصة/اختبار</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>النوع</th><th>اليوم</th><th>الوقت</th><th>المادة</th><th>الصف</th><th>المعلم</th><th></th></tr></thead>
+              <tbody id="timetableTableBody"><tr><td colspan="7" class="loading-row">جارٍ التحميل...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- نافذة إضافة/تعديل أسبوع تقويم -->
+  <div class="modal-overlay" id="calendarModal" hidden>
+    <div class="modal">
+      <div class="modal-header"><h2 id="calendarModalTitle">إضافة أسبوع</h2><button class="modal-close" id="closeCalendarModal">✕</button></div>
+      <div class="modal-body">
+        <form id="calendarForm">
+          <div class="form-row">
+            <div class="form-group"><label>الترم</label><select id="cf_term"></select></div>
+            <div class="form-group"><label>الفترة</label><input type="text" id="cf_period"></div>
+          </div>
+          <div class="form-group"><label>اسم الأسبوع</label><input type="text" id="cf_week" placeholder="مثال: الأول"></div>
+          <div class="form-row">
+            <div class="form-group"><label>تاريخ البداية</label><input type="date" id="cf_start"></div>
+            <div class="form-group"><label>تاريخ النهاية</label><input type="date" id="cf_end"></div>
+          </div>
+          <div class="form-group"><label>الحدث</label><input type="text" id="cf_event" placeholder="دراسة / إجازة / اختبارات..."></div>
+          <p class="form-error" id="calendarFormError"></p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" form="calendarForm" class="btn btn-primary" id="saveCalendarBtn">حفظ</button>
+        <button type="button" class="btn btn-outline" id="cancelCalendarBtn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة إضافة/تعديل حصة/اختبار -->
+  <div class="modal-overlay" id="timetableModal" hidden>
+    <div class="modal" style="max-width:540px">
+      <div class="modal-header"><h2 id="timetableModalTitle">إضافة حصة</h2><button class="modal-close" id="closeTimetableModal">✕</button></div>
+      <div class="modal-body">
+        <form id="timetableForm">
+          <div class="form-group">
+            <label>النوع</label>
+            <select id="ttf_entry_type"><option value="جدول حصص">جدول حصص</option><option value="جدول اختبار">جدول اختبار</option></select>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>الفرع</label><select id="ttf_branch"></select></div>
+            <div class="form-group"><label>المرحلة</label><select id="ttf_stage"></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>الصف</label><select id="ttf_grade"></select></div>
+            <div class="form-group"><label>الشعبة</label><select id="ttf_section"></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>اليوم</label>
+              <select id="ttf_day">
+                <option value="الأحد">الأحد</option><option value="الاثنين">الاثنين</option>
+                <option value="الثلاثاء">الثلاثاء</option><option value="الأربعاء">الأربعاء</option>
+                <option value="الخميس">الخميس</option>
+              </select>
+            </div>
+            <div class="form-group"><label>الوقت</label><input type="text" id="ttf_time" placeholder="مثال: 8:30 ص"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>تاريخ الاختبار (إن وجد)</label><input type="date" id="ttf_exam_date"></div>
+            <div class="form-group"><label>فترة الاختبار</label><input type="text" id="ttf_exam_period"></div>
+          </div>
+          <div class="form-group"><label>المادة</label><select id="ttf_subject"></select></div>
+          <p class="form-error" id="timetableFormError"></p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" form="timetableForm" class="btn btn-primary" id="saveTimetableBtn">حفظ</button>
+        <button type="button" class="btn btn-outline" id="cancelTimetableBtn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تأكيد الحذف -->
+  <div class="modal-overlay" id="confirmModal" hidden>
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header"><h2>تأكيد الحذف</h2><button class="modal-close" id="closeConfirmModal">✕</button></div>
+      <div class="modal-body"><p class="confirm-message" id="confirmMessage"></p></div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="confirmDeleteBtn">حذف نهائيًا</button>
+        <button class="btn btn-outline" id="cancelConfirmBtn">تراجع</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/shell.js?v=4"></script>
+  <script src="/js/schedule.js?v=2"></script>
+</body>
+</html>

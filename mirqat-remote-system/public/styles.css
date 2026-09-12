@@ -1,0 +1,156 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
+
+:root {
+  /* هوية اللون الأساسي — نفس أخضر مِرقاة، منقّى قليلًا */
+  --primary: #2F6B52;
+  --primary-dark: #1F4A38;
+
+  /* لون تمييز ثانٍ — ذهبي مطفي، يناسب طابع مدرسة إسلامية بدون ابتذال */
+  --gold: #A9813F;
+
+  /* لون تنبيه/انتظار — أحمر طوبي دافئ بدل الأحمر الفاقع */
+  --warn: #B03A2E;
+
+  /* لون معلوماتي ثالث — أزرق-رمادي مطفي */
+  --info: #3D6B7A;
+
+  --ink: #1E2A24;
+  --muted: #74796F;
+  --paper: #F6F4EF;
+  --surface: #FFFFFF;
+  --line: #E4E0D4;
+  --error: #B03A2E;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* ---------- صفحة الدخول ---------- */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  position: relative;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--gold));
+  border-radius: 4px 4px 0 0;
+}
+
+.login-card h1 {
+  color: var(--primary-dark);
+  margin: 4px 0 2px;
+  font-weight: 700;
+  font-size: 26px;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0 0 28px;
+  font-size: 14px;
+}
+
+label {
+  display: block;
+  text-align: right;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 16px 0 6px;
+}
+
+input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--surface);
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-left: 40px;
+}
+
+.toggle-password {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  width: auto;
+  margin: 0;
+  padding: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password:hover { background: none; color: var(--primary); }
+
+button {
+  width: 100%;
+  margin-top: 24px;
+  padding: 12px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+button:hover { background: var(--primary-dark); }
+button:disabled { opacity: 0.6; cursor: default; }
+
+.error-msg {
+  color: var(--error);
+  font-size: 13px;
+  min-height: 18px;
+  margin-top: 14px;
+}

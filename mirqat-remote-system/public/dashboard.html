@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>مِرقاة | لوحة التحكم</title>
+<link rel="stylesheet" href="/styles.css?v=5">
+<link rel="stylesheet" href="/css/shell.css?v=3">
+</head>
+<body>
+  <div id="shell" class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img id="schoolLogo" class="sidebar-logo" alt="" style="display:none">
+        <span id="schoolName">مِرقاة</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"><!-- تُبنى بالجافاسكربت --></nav>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="القائمة">☰</button>
+        <div class="topbar-user">
+          <span id="userName"></span>
+          <button id="logoutBtn" class="logout-link">تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <h1 class="page-title">لوحة التحكم</h1>
+
+        <div class="cards-grid" id="summaryCards">
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+          <div class="card skeleton"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/shell.js?v=4"></script>
+  <script src="/js/dashboard.js?v=2"></script>
+</body>
+</html>
