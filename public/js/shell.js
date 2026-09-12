@@ -9,7 +9,7 @@ const MIRQAT_NAV = [
   { key: 'employees', label: 'الموظفون', href: '/employees.html', ready: true, adminOnly: true },
   { key: 'schedule', label: 'التقويم والجدول', href: '/schedule.html', ready: false },
   { key: 'attendance', label: 'التحضير والغياب', href: '/attendance.html', ready: true },
-  { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: false },
+  { key: 'tasks', label: 'المهام والإثراءات', href: '/tasks.html', ready: true },
   { key: 'grading', label: 'رصد الدرجات', href: '/grading.html', ready: false },
   { key: 'behavior', label: 'السلوك', href: '/behavior.html', ready: false },
   { key: 'reports', label: 'التقارير', href: '/reports.html', ready: false },
