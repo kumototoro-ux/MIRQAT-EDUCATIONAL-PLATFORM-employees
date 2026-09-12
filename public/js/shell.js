@@ -97,6 +97,7 @@ function mirqatInitShell(activeKey) {
     document.getElementById('schoolName').textContent = json.data.name;
     if (json.data.logo) {
       const logoEl = document.getElementById('schoolLogo');
+      logoEl.onerror = () => { logoEl.style.display = 'none'; };
       logoEl.src = json.data.logo;
       logoEl.style.display = 'block';
     }
