@@ -35,6 +35,20 @@ async function init() {
   fillSelect('f_grades', allLists.grades);
   fillSelect('f_sections', allLists.sections);
 
+  // عند اختيار مرحلة بنموذج الإضافة/التعديل، تُصفّى قائمة الصفوف لصفوف تلك المرحلة فقط
+  document.getElementById('f_stages').addEventListener('change', () => {
+    const stage = document.getElementById('f_stages').value;
+    fillSelect('f_grades', mirqatGradesForStages(stage ? [stage] : [], allLists.grades));
+  });
+
+  // نفس التصفية بفلتر البحث أعلى الجدول
+  document.getElementById('filterStage').addEventListener('change', () => {
+    const stage = document.getElementById('filterStage').value;
+    const current = document.getElementById('filterGrade').value;
+    fillSelect('filterGrade', mirqatGradesForStages(stage ? [stage] : [], allLists.grades), 'كل الصفوف');
+    document.getElementById('filterGrade').value = current;
+  });
+
   ['searchInput', 'filterBranch', 'filterStage', 'filterGrade', 'filterSection'].forEach(id => {
     document.getElementById(id).addEventListener('input', debounce(handleFiltersChanged, 350));
   });

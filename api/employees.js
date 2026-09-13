@@ -46,7 +46,8 @@ export default async function handler(req, res) {
 async function listEmployees(req, res, { filters = {}, page, pageSize } = {}) {
   let query = supabase.from('employees').select('*', { count: 'exact' }).is('deleted_at', null);
 
-  if (filters.branch) query = query.eq('branch', filters.branch);
+  // .ilike بدل .eq لأن حقل branch قد يحتوي أكثر من فرع مفصول بفواصل (معلم يعمل بأكثر من فرع)
+  if (filters.branch) query = query.ilike('branch', `%${filters.branch}%`);
   if (filters.role) query = query.eq('role', filters.role);
   if (filters.search) query = query.ilike('name_ar', `%${filters.search}%`);
 

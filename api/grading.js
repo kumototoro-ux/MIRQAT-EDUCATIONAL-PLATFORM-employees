@@ -104,6 +104,21 @@ async function saveRoster(req, res, user, { records } = {}) {
     return fail(res, 'لا تملك صلاحية على هذه المادة', 403);
   }
 
+  // تحقق أمان: لا يُقبل الحفظ لو أي طالب بلا درجة، أو درجته سالبة، أو تتجاوز الدرجة العظمى
+  for (const r of records) {
+    const earned = Number(r.earned_score);
+    const max = Number(r.max_score);
+    if (r.earned_score === null || r.earned_score === undefined || r.earned_score === '' || isNaN(earned)) {
+      return fail(res, `لم تُدخل درجة للطالب ${r.student_name || r.student_id}`, 400);
+    }
+    if (earned < 0) {
+      return fail(res, `درجة سالبة غير مقبولة للطالب ${r.student_name || r.student_id}`, 400);
+    }
+    if (!isNaN(max) && earned > max) {
+      return fail(res, `درجة الطالب ${r.student_name || r.student_id} (${earned}) أكبر من الدرجة العظمى (${max})`, 400);
+    }
+  }
+
   const batchId = crypto.randomUUID();
   const rows = records.map(r => ({
     student_id: r.student_id,
@@ -166,16 +181,20 @@ async function getGradingRecords(req, res, user, { filters = {} } = {}) {
         branch: r.branch, grades: r.grades, sections: r.sections,
         term: r.term, week: r.week, recorded_date: r.recorded_date,
         employee_name: r.employee_name, employee_id: r.employee_id,
-        max_score: r.max_score, created_at: r.created_at, studentCount: 0
+        max_score: r.max_score, created_at: r.created_at, studentCount: 0, scoreSum: 0
       });
     }
     const g = groups.get(key);
     g.studentCount += 1;
+    if (typeof r.earned_score === 'number' && r.max_score > 0) {
+      g.scoreSum += (r.earned_score / r.max_score) * 100;
+    }
     if (new Date(r.created_at) < new Date(g.created_at)) g.created_at = r.created_at;
   });
 
   const rows = Array.from(groups.values()).map(g => ({
     ...g,
+    avgPct: g.studentCount ? Math.round((g.scoreSum / g.studentCount) * 10) / 10 : 0,
     can_edit: user.role === 'admin' || (now - new Date(g.created_at).getTime()) < EDIT_WINDOW_HOURS.grading * 3600 * 1000,
     can_delete: user.role === 'admin' || (now - new Date(g.created_at).getTime()) < DELETE_WINDOW_HOURS.grading * 3600 * 1000
   })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -211,7 +230,6 @@ async function getGradingBatchDetail(req, res, user, { batchId } = {}) {
 
 /* ---------------- إحصائيات سريعة (عدّ فقط) — تظهر فورًا بلا اختيار معلم/مادة ---------------- */
 async function getStats(req, res, user) {
-  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const currentWeek = await resolveCurrentWeek();
 
   let previousWeek = null;
@@ -258,7 +276,6 @@ async function getStats(req, res, user) {
 
 /* ---------------- نظرة عامة على كل الفروع: متوسط الأداء الفعلي — استعلام واحد فقط ---------------- */
 async function getOverview(req, res, user) {
-  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   const { data: branchRows } = await supabase.from('settings_lists').select('value').eq('list_key', 'branches');
   const branches = (branchRows || []).map(r => r.value);
 
@@ -292,7 +309,6 @@ async function getOverview(req, res, user) {
 
 /* ---------------- إحصائيات مخصصة حسب فلتر محدد ---------------- */
 async function getFilteredStats(req, res, user, { branch, term, week, subject, grades } = {}) {
-  if (user.role !== 'admin') return fail(res, 'الإحصائيات العامة مقيّدة بصلاحية أدمن فقط', 403);
   let q = supabase.from('daily_follow_up').select('earned_score, max_score, eval_type');
   q = scopeToOwner(q, user);
   if (branch) q = q.eq('branch', branch);

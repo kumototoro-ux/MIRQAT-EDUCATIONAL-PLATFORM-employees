@@ -6,7 +6,7 @@
 <title>مِرقاة | التحضير والغياب</title>
 <link rel="stylesheet" href="/styles.css?v=6">
 <link rel="stylesheet" href="/css/shell.css?v=11">
-<link rel="stylesheet" href="/css/components.css?v=11">
+<link rel="stylesheet" href="/css/components.css?v=12">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
@@ -59,12 +59,12 @@
         <h1 class="page-title">التحضير والغياب</h1>
 
         <div class="tabs" id="mainTabs">
-          <button class="tab-btn active" data-main="stats">الإحصائيات العامة</button>
-          <button class="tab-btn" data-main="record">التحضير</button>
+          <button class="tab-btn" data-main="stats" id="statsTabBtn" style="display:none;">الإحصائيات العامة</button>
+          <button class="tab-btn active" data-main="record">التحضير</button>
         </div>
 
         <!-- ============ تبويب رئيسي: الإحصائيات العامة ============ -->
-        <section id="mainPanel-stats">
+        <section id="mainPanel-stats" hidden>
           <div class="cards-grid" id="statsCards"></div>
           <div class="chart-card" id="trendChartCard" style="display:none;">
             <h3>اتجاه سجلات التحضير — آخر 6 أسابيع</h3>
@@ -125,7 +125,7 @@
         </section>
 
         <!-- ============ تبويب رئيسي: التحضير ============ -->
-        <section id="mainPanel-record" hidden>
+        <section id="mainPanel-record">
         <div class="tabs">
           <button class="tab-btn active" data-tab="record">تسجيل تحضير</button>
           <button class="tab-btn" data-tab="log">سجل التحضير</button>
@@ -237,7 +237,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=11"></script>
-  <script src="/js/attendance.js?v=10"></script>
+  <script src="/js/shell.js?v=12"></script>
+  <script src="/js/attendance.js?v=11"></script>
 </body>
 </html>

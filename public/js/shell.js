@@ -161,6 +161,41 @@ function mirqatEmbedUrl(link) {
 }
 
 /**
+ * يفلتر قائمة الصفوف حسب المرحلة/المراحل المختارة — بمطابقة كلمة المرحلة
+ * داخل اسم الصف نفسه (مثال: "متوسط" تطابق "الصف الأول المتوسط"). إن لم
+ * تُختر أي مرحلة، يرجّع كل الصفوف بلا تصفية.
+ */
+function mirqatGradesForStages(selectedStages, allGrades) {
+  if (!selectedStages || !selectedStages.length) return allGrades || [];
+  const keywords = selectedStages.map(s => {
+    if (s.includes('ابتدائ')) return 'ابتدائ';
+    if (s.includes('متوسط')) return 'متوسط';
+    if (s.includes('ثانوي')) return 'ثانوي';
+    return s; // مرحلة غير قياسية — نطابقها كما هي
+  });
+  return (allGrades || []).filter(g => keywords.some(k => g.includes(k)));
+}
+
+/**
+ * تحقق أمان قبل حفظ أي كشف درجات: يرفض الحفظ لو أي طالب بلا درجة، أو درجته
+ * سالبة، أو تتجاوز الدرجة العظمى — يرجّع رسالة خطأ نصية، أو null إن كان سليمًا.
+ */
+function mirqatValidateRoster(rows, maxScore) {
+  const max = Number(maxScore);
+  let missing = 0;
+  for (const row of rows) {
+    const input = row.querySelector('.score-input');
+    const val = input.value;
+    if (val === '') { missing++; continue; }
+    const num = Number(val);
+    if (isNaN(num) || num < 0) return 'توجد درجة غير صحيحة — تحقق من كل الحقول';
+    if (num > max) return `درجة أحد الطلاب (${num}) أكبر من الدرجة العظمى (${max}) — تحقق قبل الحفظ`;
+  }
+  if (missing > 0) return `لم تُدخل درجة لـ ${missing} طالب — أدخل درجة كل طالب قبل الحفظ (ضع 0 إن لم يُنجز)`;
+  return null;
+}
+
+/**
  * يقفل أي قائمة اختيار (select) لا تملك سوى قيمة واحدة فعلية — يحوّلها لعرض ثابت
  * بدل قائمة قابلة للاختيار. يُستخدم لموظف مرتبط بقيمة واحدة فقط (فرع/مرحلة/صف واحد...).
  */

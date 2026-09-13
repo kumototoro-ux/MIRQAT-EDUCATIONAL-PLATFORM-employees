@@ -27,6 +27,18 @@ async function init() {
   buildCheckboxGroup('cg_sections', allLists.sections);
   buildCheckboxGroup('cg_subject', allLists.subject);
 
+  // عند اختيار مرحلة، تُصفّى قائمة الصفوف لصفوف تلك المرحلة فقط تلقائيًا
+  document.getElementById('cg_stages').addEventListener('change', () => {
+    const checkedStages = getCheckedValues('cg_stages');
+    const currentlyCheckedGrades = getCheckedValues('cg_grades');
+    const filteredGrades = mirqatGradesForStages(checkedStages, allLists.grades);
+    buildCheckboxGroup('cg_grades', filteredGrades);
+    currentlyCheckedGrades.forEach(g => {
+      const input = document.querySelector(`#cg_grades input[value="${CSS.escape(g)}"]`);
+      if (input) input.checked = true;
+    });
+  });
+
   ['searchInput', 'filterBranch', 'filterRole'].forEach(id => {
     document.getElementById(id).addEventListener('input', debounce(() => loadEmployees(1), 300));
   });
@@ -144,6 +156,8 @@ function openEmployeeModal(employee = null) {
 
   setCheckedValues('cg_branch', employee?.branch);
   setCheckedValues('cg_stages', employee?.stages);
+  // نصفّي الصفوف حسب المرحلة/المراحل المسندة للموظف قبل تعليم صفوفه المحفوظة
+  buildCheckboxGroup('cg_grades', mirqatGradesForStages(getCheckedValues('cg_stages'), allLists.grades));
   setCheckedValues('cg_grades', employee?.grades);
   setCheckedValues('cg_sections', employee?.sections);
   setCheckedValues('cg_subject', employee?.subject);

@@ -73,17 +73,17 @@ async function init() {
     });
   });
 
-  // الإحصائيات العامة مقيّدة على الأدمن فقط
+  // الإحصائيات مفتوحة لكل الموظفين بصفحة الرصد — لكن مقيّدة تلقائيًا بسجلاته هو فقط (الخادم يتكفّل بذلك)
+  loadStats();
   if (user.role === 'admin') {
-    loadStats();
     loadOverview();
-    setupCustomFilters();
   } else {
-    document.querySelector('#mainTabs .tab-btn[data-main="stats"]').style.display = 'none';
-    document.getElementById('mainPanel-stats').hidden = true;
-    document.querySelector('#mainTabs .tab-btn[data-main="grading"]').classList.add('active');
-    document.getElementById('mainPanel-grading').hidden = false;
+    document.getElementById('branchAvgCard').style.display = 'none';
+    document.getElementById('branchTotalCard').style.display = 'none';
+    document.getElementById('branchTrendCard').style.display = 'none';
+    document.querySelector('#mainPanel-stats h2').style.display = 'none';
   }
+  setupCustomFilters();
 }
 
 /* ---------------- نظرة عامة على أداء الفروع ---------------- */
@@ -154,10 +154,11 @@ async function loadOverview() {
 let customBarChartInstance = null;
 
 function setupCustomFilters() {
-  fillSelect('cf_branch', allLists.branches, 'كل الفروع');
+  const isAdmin = user.role === 'admin';
+  fillSelect('cf_branch', isAdmin ? allLists.branches : splitList(user.branch), 'كل الفروع');
   fillSelect('cf_term', allLists.terms, 'كل الترمات');
-  fillSelect('cf_subject', allLists.subject, 'كل المواد');
-  fillSelect('cf_grades', allLists.grades, 'كل الصفوف');
+  fillSelect('cf_subject', isAdmin ? allLists.subject : splitList(user.subject), 'كل المواد');
+  fillSelect('cf_grades', isAdmin ? allLists.grades : splitList(user.grades), 'كل الصفوف');
 
   document.getElementById('cf_term').addEventListener('change', async () => {
     const term = document.getElementById('cf_term').value;
@@ -423,10 +424,14 @@ async function openTaskRoster(task) {
 
   document.getElementById('saveTaskRosterBtn').addEventListener('click', async () => {
     const errorEl = document.getElementById('taskRosterError');
+    errorEl.textContent = '';
     const rows = Array.from(document.querySelectorAll('#taskRosterArea tr[data-student-id]'));
+
+    const validationError = mirqatValidateRoster(rows, task.max_score);
+    if (validationError) { errorEl.textContent = validationError; return; }
+
     const records = rows.map(row => {
       const scoreVal = row.querySelector('.score-input').value;
-      if (scoreVal === '') return null;
       const studentId = row.dataset.studentId;
       const student = currentRoster.find(s => s.id === studentId);
       return {
@@ -435,9 +440,7 @@ async function openTaskRoster(task) {
         subject: currentSubject, term: task.term, week: currentWeekInfo?.week || null, eval_type: task.eval_type, task_name: task.task_name,
         earned_score: Number(scoreVal), max_score: Number(task.max_score)
       };
-    }).filter(Boolean);
-
-    if (!records.length) { errorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
+    });
 
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
@@ -525,10 +528,14 @@ async function submitManualMeta(e) {
 
   document.getElementById('saveManualBtn').addEventListener('click', async () => {
     const rErrorEl = document.getElementById('manualRosterError');
+    rErrorEl.textContent = '';
     const rows = Array.from(document.querySelectorAll('#manualRosterArea tr[data-student-id]'));
+
+    const validationError = mirqatValidateRoster(rows, meta.max_score);
+    if (validationError) { rErrorEl.textContent = validationError; return; }
+
     const records = rows.map(row => {
       const val = row.querySelector('.score-input').value;
-      if (val === '') return null;
       const studentId = row.dataset.studentId;
       const student = currentRoster.find(s => s.id === studentId);
       return {
@@ -538,9 +545,7 @@ async function submitManualMeta(e) {
         eval_type: meta.eval_type, task_name: meta.task_name,
         earned_score: Number(val), max_score: Number(meta.max_score)
       };
-    }).filter(Boolean);
-
-    if (!records.length) { rErrorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
+    });
 
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
@@ -621,10 +626,14 @@ async function submitParticipationMeta(e) {
 
   document.getElementById('saveParticipationBtn').addEventListener('click', async () => {
     const rErrorEl = document.getElementById('participationRosterError');
+    rErrorEl.textContent = '';
     const rows = Array.from(document.querySelectorAll('#participationRosterArea tr[data-student-id]'));
+
+    const validationError = mirqatValidateRoster(rows, meta.max);
+    if (validationError) { rErrorEl.textContent = validationError; return; }
+
     const records = rows.map(row => {
       const val = row.querySelector('.score-input').value;
-      if (val === '') return null;
       const studentId = row.dataset.studentId;
       const student = currentRoster.find(s => s.id === studentId);
       return {
@@ -636,9 +645,7 @@ async function submitParticipationMeta(e) {
         earned_score: Number(val), max_score: Number(meta.max),
         recorded_date: new Date().toISOString().slice(0, 10)
       };
-    }).filter(Boolean);
-
-    if (!records.length) { rErrorEl.textContent = 'أدخل درجة طالب واحد على الأقل'; return; }
+    });
 
     try {
       await mirqatApi('grading', 'saveRoster', { records }, { cache: false });
@@ -695,7 +702,10 @@ async function loadLog(page = currentLogPage) {
         <div class="roster-card" onclick="openGradingBatchDetail('${r.batch_id}')">
           <div class="rc-title">${r.task_name || 'بدون اسم'}</div>
           <div class="rc-meta">${r.eval_type || ''} — من ${r.max_score ?? '—'}<br>${r.grades || ''} ${r.sections || ''}<br>${r.recorded_date || ''} — ${r.employee_name || ''}</div>
-          <span class="rc-count">${r.studentCount} طالب</span>
+          <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+            <span class="rc-count">${r.studentCount} طالب</span>
+            <span class="rc-perf ${r.avgPct >= 70 ? 'good' : r.avgPct >= 50 ? 'mid' : 'low'}">متوسط الأداء ${r.avgPct}%</span>
+          </div>
         </div>
       `).join('');
     }

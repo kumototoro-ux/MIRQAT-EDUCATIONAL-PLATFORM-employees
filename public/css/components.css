@@ -475,6 +475,13 @@ table.data-table {
   display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 700;
   background: rgba(47,107,82,0.1); color: var(--primary); padding: 3px 10px; border-radius: 20px;
 }
+.roster-card .rc-perf {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+}
+.rc-perf.good { background: rgba(47,107,82,0.12); color: var(--primary); }
+.rc-perf.mid { background: rgba(169,129,63,0.15); color: var(--gold); }
+.rc-perf.low { background: rgba(176,58,46,0.12); color: var(--warn); }
 
 /* ---------- شريط التحديد السريع + شرائح الحالة (تحضير/رصد سريع) ---------- */
 .quick-mark-bar {

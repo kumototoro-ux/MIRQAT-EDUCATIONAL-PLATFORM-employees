@@ -63,12 +63,10 @@ async function init() {
     });
   });
 
-  // الإحصائيات العامة مقيّدة على الأدمن فقط
-  if (user.role !== 'admin') {
-    document.querySelector('#mainTabs .tab-btn[data-main="stats"]').style.display = 'none';
-    document.getElementById('mainPanel-stats').hidden = true;
-    document.querySelector('#mainTabs .tab-btn[data-main="record"]').classList.add('active');
-    document.getElementById('mainPanel-record').hidden = false;
+  // الإحصائيات العامة مقيّدة على الأدمن فقط — مخفية افتراضيًا بالـ HTML نفسه (لا ومضة محتوى)
+  if (user.role === 'admin') {
+    const statsBtn = document.querySelector('#mainTabs .tab-btn[data-main="stats"]');
+    statsBtn.style.display = '';
   }
 
   fillSelect('ef_status', allLists.attendance_statuses);
