@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | السلوك</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=11">
+<link rel="stylesheet" href="/css/shell.css?v=13">
 <link rel="stylesheet" href="/css/components.css?v=12">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
 <script>
@@ -67,17 +67,17 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;">
           <div class="chart-card">
             <h3>توزيع الحالات (إيجابي / سلبي)</h3>
-            <canvas id="statusChart"></canvas>
+            <div id="statusChart"></div>
           </div>
           <div class="chart-card">
             <h3>توزيع السجلات حسب الترم</h3>
-            <canvas id="termChart"></canvas>
+            <div id="termChart"></div>
           </div>
         </div>
 
         <div class="chart-card" id="branchChartCard" style="display:none;">
           <h3>توزيع السجلات حسب الفرع</h3>
-          <canvas id="branchChart"></canvas>
+          <div id="branchChart"></div>
         </div>
 
         <h2 style="font-size:16px; color:var(--primary-dark); margin-top:28px;">آخر 100 سجل (للمراجعة)</h2>
@@ -96,7 +96,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=12"></script>
-  <script src="/js/behavior.js?v=3"></script>
+  <script src="/js/shell.js?v=13"></script>
+  <script src="/js/behavior.js?v=4"></script>
 </body>
 </html>

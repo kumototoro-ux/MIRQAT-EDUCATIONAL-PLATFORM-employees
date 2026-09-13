@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | التحضير والغياب</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=11">
+<link rel="stylesheet" href="/css/shell.css?v=13">
 <link rel="stylesheet" href="/css/components.css?v=12">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
 <script>
@@ -68,16 +68,16 @@
           <div class="cards-grid" id="statsCards"></div>
           <div class="chart-card" id="trendChartCard" style="display:none;">
             <h3>اتجاه سجلات التحضير — آخر 6 أسابيع</h3>
-            <canvas id="trendChart"></canvas>
+            <div id="trendChart"></div>
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;">
             <div class="chart-card" id="statusChartCard" style="display:none;">
               <h3>توزيع حالات التحضير (هذا الأسبوع)</h3>
-              <canvas id="statusChart"></canvas>
+              <div id="statusChart"></div>
             </div>
             <div class="chart-card" id="statusBarChartCard" style="display:none;">
               <h3>عدد كل حالة (هذا الأسبوع)</h3>
-              <canvas id="statusBarChart"></canvas>
+              <div id="statusBarChart"></div>
             </div>
           </div>
 
@@ -85,16 +85,16 @@
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
             <div class="chart-card" id="branchCompareCard" style="display:none;">
               <h3>مقارنة الحالات بين الفروع</h3>
-              <canvas id="branchCompareChart"></canvas>
+              <div id="branchCompareChart"></div>
             </div>
             <div class="chart-card" id="branchPctCard" style="display:none;">
               <h3>نسبة كل حالة من إجمالي كل فرع</h3>
-              <canvas id="branchPctChart"></canvas>
+              <div id="branchPctChart"></div>
             </div>
           </div>
           <div class="chart-card" id="branchTrendCard" style="display:none; margin:16px 0;">
             <h3>اتجاه كل فرع عبر الأسابيع (آخر 12 أسبوع)</h3>
-            <canvas id="branchTrendChart"></canvas>
+            <div id="branchTrendChart"></div>
           </div>
 
           <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">إحصائيات مخصصة بحسب فلتر تحدده</h2>
@@ -115,11 +115,11 @@
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
             <div class="chart-card" id="customDonutCard" style="display:none;">
               <h3>توزيع الحالات لهذا الفلتر</h3>
-              <canvas id="customDonutChart"></canvas>
+              <div id="customDonutChart"></div>
             </div>
             <div class="chart-card" id="customBarCard" style="display:none;">
               <h3>عدد كل حالة لهذا الفلتر</h3>
-              <canvas id="customBarChart"></canvas>
+              <div id="customBarChart"></div>
             </div>
           </div>
         </section>
@@ -237,7 +237,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=12"></script>
-  <script src="/js/attendance.js?v=11"></script>
+  <script src="/js/shell.js?v=13"></script>
+  <script src="/js/attendance.js?v=12"></script>
 </body>
 </html>

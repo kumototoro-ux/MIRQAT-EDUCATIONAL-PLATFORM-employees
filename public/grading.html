@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | رصد الدرجات</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=11">
+<link rel="stylesheet" href="/css/shell.css?v=13">
 <link rel="stylesheet" href="/css/components.css?v=12">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
 <script>
@@ -71,27 +71,27 @@
           </div>
           <div class="chart-card" id="trendChartCard" style="display:none;">
             <h3>اتجاه الرصد — آخر 6 أسابيع</h3>
-            <canvas id="trendChart"></canvas>
+            <div id="trendChart"></div>
           </div>
           <div class="chart-card" id="evalChartCard" style="display:none;">
             <h3>توزيع الرصد حسب نوع التقييم (هذا الأسبوع)</h3>
-            <canvas id="evalChart"></canvas>
+            <div id="evalChart"></div>
           </div>
 
           <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">نظرة عامة على مستوى أداء كل فرع</h2>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
             <div class="chart-card" id="branchAvgCard" style="display:none;">
               <h3>متوسط نسبة الأداء لكل فرع (٪)</h3>
-              <canvas id="branchAvgChart"></canvas>
+              <div id="branchAvgChart"></div>
             </div>
             <div class="chart-card" id="branchTotalCard" style="display:none;">
               <h3>نسبة عدد الرصد من إجمالي كل الفروع</h3>
-              <canvas id="branchTotalChart"></canvas>
+              <div id="branchTotalChart"></div>
             </div>
           </div>
           <div class="chart-card" id="branchTrendCard" style="display:none; margin:16px 0;">
             <h3>اتجاه الرصد لكل فرع عبر الأسابيع (آخر 12 أسبوع)</h3>
-            <canvas id="branchTrendChart"></canvas>
+            <div id="branchTrendChart"></div>
           </div>
 
           <h2 style="font-size:16px; color:var(--primary-dark); margin-top:32px;">إحصائيات مخصصة بحسب فلتر تحدده</h2>
@@ -106,7 +106,7 @@
           <div class="cards-grid" id="customStatsCards" style="display:none;"></div>
           <div class="chart-card" id="customBarCard" style="display:none; margin-top:16px;">
             <h3>توزيع الرصد حسب نوع التقييم لهذا الفلتر</h3>
-            <canvas id="customBarChart"></canvas>
+            <div id="customBarChart"></div>
           </div>
         </section>
 
@@ -230,7 +230,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=12"></script>
-  <script src="/js/grading.js?v=12"></script>
+  <script src="/js/shell.js?v=13"></script>
+  <script src="/js/grading.js?v=13"></script>
 </body>
 </html>

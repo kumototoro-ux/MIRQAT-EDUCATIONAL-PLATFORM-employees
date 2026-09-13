@@ -50,19 +50,8 @@ async function loadAttendanceTrend() {
     if (!stats.weeklyTrend || !stats.weeklyTrend.length) return;
 
     document.getElementById('attendanceTrendCard').style.display = 'block';
-    if (attendanceTrendChartInstance) attendanceTrendChartInstance.destroy();
-    attendanceTrendChartInstance = new Chart(document.getElementById('attendanceTrendChart'), {
-      type: 'line',
-      data: {
-        labels: stats.weeklyTrend.map(w => w.label),
-        datasets: [{
-          label: 'سجلات التحضير',
-          data: stats.weeklyTrend.map(w => w.count),
-          borderColor: '#2F6B52', backgroundColor: 'rgba(47,107,82,0.12)',
-          fill: true, tension: 0.4, pointRadius: 3
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    mirqatApexLine('attendanceTrendChart', stats.weeklyTrend.map(w => w.label), stats.weeklyTrend.map(w => w.count), {
+      name: 'سجلات التحضير', color: '#2F6B52'
     });
   } catch { /* صامت — قسم ثانوي */ }
 }
@@ -74,19 +63,8 @@ async function loadGradingTrend() {
     if (!stats.weeklyTrend || !stats.weeklyTrend.length) return;
 
     document.getElementById('gradingTrendCard').style.display = 'block';
-    if (gradingTrendChartInstance) gradingTrendChartInstance.destroy();
-    gradingTrendChartInstance = new Chart(document.getElementById('gradingTrendChart'), {
-      type: 'line',
-      data: {
-        labels: stats.weeklyTrend.map(w => w.label),
-        datasets: [{
-          label: 'سجلات الرصد',
-          data: stats.weeklyTrend.map(w => w.count),
-          borderColor: '#A9813F', backgroundColor: 'rgba(169,129,63,0.12)',
-          fill: true, tension: 0.4, pointRadius: 3
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    mirqatApexLine('gradingTrendChart', stats.weeklyTrend.map(w => w.label), stats.weeklyTrend.map(w => w.count), {
+      name: 'سجلات الرصد', color: '#A9813F'
     });
   } catch { /* صامت */ }
 }
@@ -101,15 +79,8 @@ async function loadBehaviorOverview() {
     const negative = stats.byStatus.find(s => s.label === 'سلبي')?.count || 0;
 
     document.getElementById('behaviorDonutCard').style.display = 'block';
-    if (behaviorDonutChartInstance) behaviorDonutChartInstance.destroy();
-    behaviorDonutChartInstance = new Chart(document.getElementById('behaviorDonutChart'), {
-      type: 'doughnut',
-      data: {
-        labels: ['إيجابي', 'سلبي'],
-        datasets: [{ data: [positive, negative], backgroundColor: ['#2F6B52', '#B03A2E'], borderWidth: 0 }]
-      },
-      plugins: [mirqatDonutCenterPlugin(String(stats.total))],
-      options: { responsive: true, cutout: '72%', plugins: { legend: { position: 'bottom' } } }
+    mirqatApexDonut('behaviorDonutChart', ['إيجابي', 'سلبي'], [positive, negative], {
+      colors: ['#2F6B52', '#B03A2E'], centerLabel: String(stats.total)
     });
   } catch { /* صامت */ }
 }

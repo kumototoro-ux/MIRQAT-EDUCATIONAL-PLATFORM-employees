@@ -96,57 +96,20 @@ async function loadOverview() {
     const data = await mirqatApi('grading', 'getOverview', {});
     if (!data.branches.length) return;
 
-    const palette = ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F'];
-
     document.getElementById('branchAvgCard').style.display = 'block';
-    if (branchAvgChartInstance) branchAvgChartInstance.destroy();
-    branchAvgChartInstance = new Chart(document.getElementById('branchAvgChart'), {
-      type: 'bar',
-      data: {
-        labels: data.perBranch.map(b => b.branch),
-        datasets: [{
-          data: data.perBranch.map(b => b.avgPct),
-          backgroundColor: data.perBranch.map((_, i) => palette[i % palette.length]),
-          borderRadius: 8
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } },
-        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }
-      }
-    });
+    mirqatApexBar('branchAvgChart', data.perBranch.map(b => b.branch),
+      [{ name: 'متوسط الأداء', data: data.perBranch.map(b => b.avgPct) }],
+      { yFormatter: v => v + '%', tooltipFormatter: v => v + '%' }
+    );
 
     document.getElementById('branchTotalCard').style.display = 'block';
-    if (branchTotalChartInstance) branchTotalChartInstance.destroy();
-    branchTotalChartInstance = new Chart(document.getElementById('branchTotalChart'), {
-      type: 'pie',
-      data: {
-        labels: data.perBranch.map(b => b.branch),
-        datasets: [{ data: data.perBranch.map(b => b.total), backgroundColor: palette }]
-      },
-      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
+    mirqatApexPie('branchTotalChart', data.perBranch.map(b => b.branch), data.perBranch.map(b => b.total));
 
     document.getElementById('branchTrendCard').style.display = 'block';
-    if (branchTrendChartInstance) branchTrendChartInstance.destroy();
     const labels = data.trendByBranch[0]?.series.map(s => s.label) || [];
-    branchTrendChartInstance = new Chart(document.getElementById('branchTrendChart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: data.trendByBranch.map((b, i) => ({
-          label: b.branch,
-          data: b.series.map(s => s.count),
-          borderColor: palette[i % palette.length],
-          backgroundColor: palette[i % palette.length] + '22',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3
-        }))
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
+    mirqatApexMultiLine('branchTrendChart', labels,
+      data.trendByBranch.map(b => ({ name: b.branch, data: b.series.map(s => s.count) }))
+    );
   } catch (e) { /* صامت — قسم ثانوي */ }
 }
 
@@ -192,14 +155,8 @@ async function applyCustomFilter() {
 
     if (result.byEvalType.length) {
       document.getElementById('customBarCard').style.display = 'block';
-      if (customBarChartInstance) customBarChartInstance.destroy();
-      customBarChartInstance = new Chart(document.getElementById('customBarChart'), {
-        type: 'bar',
-        data: {
-          labels: result.byEvalType.map(e => e.label),
-          datasets: [{ data: result.byEvalType.map(e => e.count), backgroundColor: '#A9813F', borderRadius: 8 }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      mirqatApexBar('customBarChart', result.byEvalType.map(e => e.label), [{ name: 'عدد', data: result.byEvalType.map(e => e.count) }], {
+        colors: ['#A9813F']
       });
     } else {
       document.getElementById('customBarCard').style.display = 'none';
@@ -228,42 +185,14 @@ async function loadStats() {
 
     if (stats.weeklyTrend && stats.weeklyTrend.length) {
       document.getElementById('trendChartCard').style.display = 'block';
-      const trendCtx = document.getElementById('trendChart');
-      if (trendChartInstance) trendChartInstance.destroy();
-      trendChartInstance = new Chart(trendCtx, {
-        type: 'line',
-        data: {
-          labels: stats.weeklyTrend.map(w => w.label),
-          datasets: [{
-            label: 'عدد الرصد',
-            data: stats.weeklyTrend.map(w => w.count),
-            borderColor: '#A9813F',
-            backgroundColor: 'rgba(169,129,63,0.12)',
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#A9813F',
-            pointRadius: 4
-          }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      mirqatApexLine('trendChart', stats.weeklyTrend.map(w => w.label), stats.weeklyTrend.map(w => w.count), {
+        name: 'عدد الرصد', color: '#A9813F'
       });
     }
 
     if (stats.byEvalType && stats.byEvalType.length) {
       document.getElementById('evalChartCard').style.display = 'block';
-      const ctx = document.getElementById('evalChart');
-      if (evalChartInstance) evalChartInstance.destroy();
-      evalChartInstance = new Chart(ctx, {
-        type: 'polarArea',
-        data: {
-          labels: stats.byEvalType.map(e => e.label),
-          datasets: [{
-            data: stats.byEvalType.map(e => e.count),
-            backgroundColor: ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F', '#5C8A73']
-          }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-      });
+      mirqatApexPolar('evalChart', stats.byEvalType.map(e => e.label), stats.byEvalType.map(e => e.count));
     }
   } catch (e) {
     document.getElementById('statsCards').innerHTML = `<p class="empty-state">تعذّر تحميل الإحصائيات: ${e.message}</p>`;

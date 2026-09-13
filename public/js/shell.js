@@ -383,6 +383,167 @@ function mirqatTrendBadge(current, previous) {
   return `<div class="card-trend ${dir}">${Math.abs(pct)}%</div>`;
 }
 
+/* ================= مساعدات ApexCharts المشتركة (لوحة الألوان الموحّدة) ================= */
+const MIRQAT_PALETTE = ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F', '#5C8A73'];
+const mirqatApexInstances = {};
+
+function mirqatDestroyChart(elId) {
+  if (mirqatApexInstances[elId]) {
+    try { mirqatApexInstances[elId].destroy(); } catch { /* ignore */ }
+    delete mirqatApexInstances[elId];
+  }
+}
+
+/** رسم خطي/مساحي — اتجاه عبر الزمن */
+function mirqatApexLine(elId, labels, data, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const chart = new ApexCharts(el, {
+    chart: { type: 'area', height: opts.height || 260, toolbar: { show: false }, fontFamily: 'inherit', sparkline: { enabled: false } },
+    series: [{ name: opts.name || '', data }],
+    xaxis: { categories: labels, labels: { style: { fontSize: '11px' } } },
+    yaxis: { labels: { style: { fontSize: '11px' } } },
+    colors: [opts.color || MIRQAT_PALETTE[0]],
+    stroke: { curve: 'smooth', width: 2.5 },
+    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.03 } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#E4E0D4', strokeDashArray: 3 },
+    legend: { show: false },
+    tooltip: { theme: 'light' }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
+/** رسم أعمدة — سلسلة واحدة أو عدة سلاسل (مجمّعة أو مكدّسة) */
+function mirqatApexBar(elId, labels, series, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const chart = new ApexCharts(el, {
+    chart: { type: 'bar', height: opts.height || 260, toolbar: { show: false }, fontFamily: 'inherit', stacked: !!opts.stacked },
+    series,
+    xaxis: { categories: labels, labels: { style: { fontSize: '11px' } } },
+    yaxis: { labels: { style: { fontSize: '11px' }, formatter: opts.yFormatter } },
+    colors: opts.colors || MIRQAT_PALETTE,
+    plotOptions: { bar: { borderRadius: 6, columnWidth: opts.columnWidth || '45%' } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#E4E0D4', strokeDashArray: 3 },
+    legend: { show: series.length > 1, fontSize: '12px', position: 'bottom' },
+    tooltip: { theme: 'light', y: { formatter: opts.tooltipFormatter } }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
+/** رسم دونات — نسب من إجمالي واحد، مع كتابة الإجمالي بالمنتصف */
+function mirqatApexDonut(elId, labels, data, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const total = opts.centerLabel || String(data.reduce((a, b) => a + b, 0));
+  const chart = new ApexCharts(el, {
+    chart: { type: 'donut', height: opts.height || 260, fontFamily: 'inherit' },
+    series: data,
+    labels,
+    colors: opts.colors || MIRQAT_PALETTE,
+    dataLabels: { enabled: false },
+    legend: { fontSize: '12px', position: 'bottom' },
+    stroke: { width: 0 },
+    plotOptions: { pie: { donut: { size: '72%', labels: { show: true, total: { show: true, label: opts.totalLabel || 'الإجمالي', formatter: () => total } } } } },
+    tooltip: { theme: 'light' }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
+/** رسم فطيرة (Pie) — بلا تجويف بالمنتصف */
+function mirqatApexPie(elId, labels, data, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const chart = new ApexCharts(el, {
+    chart: { type: 'pie', height: opts.height || 260, fontFamily: 'inherit' },
+    series: data,
+    labels,
+    colors: opts.colors || MIRQAT_PALETTE,
+    dataLabels: { enabled: true, style: { fontSize: '11px' } },
+    legend: { fontSize: '12px', position: 'bottom' },
+    tooltip: { theme: 'light' }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
+/** رسم قطبي (Polar Area) — مقارنة فئات متعددة بمساحات دائرية */
+function mirqatApexPolar(elId, labels, data, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const chart = new ApexCharts(el, {
+    chart: { type: 'polarArea', height: opts.height || 260, fontFamily: 'inherit' },
+    series: data,
+    labels,
+    colors: opts.colors || MIRQAT_PALETTE,
+    legend: { fontSize: '12px', position: 'bottom' },
+    stroke: { colors: ['#fff'] },
+    fill: { opacity: 0.85 },
+    tooltip: { theme: 'light' }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
+/** رسم أعمدة مكدّسة بالنسبة المئوية (٪ 0-100) */
+function mirqatApexStackedPct(elId, labels, series, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const chart = new ApexCharts(el, {
+    chart: { type: 'bar', height: opts.height || 260, toolbar: { show: false }, fontFamily: 'inherit', stacked: true },
+    series,
+    xaxis: { categories: labels, labels: { style: { fontSize: '11px' } } },
+    yaxis: { max: 100, labels: { formatter: v => v + '%', style: { fontSize: '11px' } } },
+    colors: opts.colors || MIRQAT_PALETTE,
+    plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#E4E0D4', strokeDashArray: 3 },
+    legend: { fontSize: '12px', position: 'bottom' },
+    tooltip: { theme: 'light', y: { formatter: v => v + '%' } }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
+/** رسم متعدد السلاسل الخطية (مقارنة فروع عبر الزمن مثلًا) */
+function mirqatApexMultiLine(elId, labels, series, opts = {}) {
+  mirqatDestroyChart(elId);
+  const el = document.querySelector('#' + elId);
+  if (!el) return null;
+  const chart = new ApexCharts(el, {
+    chart: { type: 'line', height: opts.height || 280, toolbar: { show: false }, fontFamily: 'inherit' },
+    series,
+    xaxis: { categories: labels, labels: { style: { fontSize: '11px' } } },
+    yaxis: { labels: { style: { fontSize: '11px' } } },
+    colors: opts.colors || MIRQAT_PALETTE,
+    stroke: { curve: 'smooth', width: 2.5 },
+    dataLabels: { enabled: false },
+    grid: { borderColor: '#E4E0D4', strokeDashArray: 3 },
+    legend: { fontSize: '12px', position: 'bottom' },
+    tooltip: { theme: 'light' }
+  });
+  chart.render();
+  mirqatApexInstances[elId] = chart;
+  return chart;
+}
+
 /** بلَجن Chart.js يكتب رقمًا كبيرًا بمنتصف أي رسم دونات (دائري مفرّغ) */
 function mirqatDonutCenterPlugin(text) {
   return {

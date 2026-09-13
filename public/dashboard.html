@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>مِرقاة | لوحة التحكم</title>
 <link rel="stylesheet" href="/styles.css?v=6">
-<link rel="stylesheet" href="/css/shell.css?v=11">
+<link rel="stylesheet" href="/css/shell.css?v=13">
 <link rel="stylesheet" href="/css/components.css?v=12">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
 <script>
@@ -69,15 +69,15 @@
           <div class="dash-col-main">
             <div class="chart-card" id="attendanceTrendCard" style="display:none;">
               <h3>اتجاه التحضير — آخر 6 أسابيع</h3>
-              <canvas id="attendanceTrendChart"></canvas>
+              <div id="attendanceTrendChart"></div>
             </div>
             <div class="chart-card" id="gradingTrendCard" style="display:none; margin-top:16px;">
               <h3>اتجاه الرصد — آخر 6 أسابيع</h3>
-              <canvas id="gradingTrendChart"></canvas>
+              <div id="gradingTrendChart"></div>
             </div>
             <div class="chart-card" id="behaviorDonutCard" style="display:none; margin-top:16px;">
               <h3>توزيع السلوك العام</h3>
-              <canvas id="behaviorDonutChart"></canvas>
+              <div id="behaviorDonutChart"></div>
             </div>
           </div>
 
@@ -96,7 +96,7 @@
     </div>
   </div>
 
-  <script src="/js/shell.js?v=12"></script>
-  <script src="/js/dashboard.js?v=3"></script>
+  <script src="/js/shell.js?v=13"></script>
+  <script src="/js/dashboard.js?v=4"></script>
 </body>
 </html>

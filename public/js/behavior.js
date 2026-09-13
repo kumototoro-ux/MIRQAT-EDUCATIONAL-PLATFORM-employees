@@ -60,51 +60,19 @@ async function loadStats() {
 }
 
 function drawStatusDonut(positive, negative) {
-  const ctx = document.getElementById('statusChart');
-  if (statusChartInstance) statusChartInstance.destroy();
-  statusChartInstance = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['إيجابي', 'سلبي'],
-      datasets: [{ data: [positive, negative], backgroundColor: ['#2F6B52', '#B03A2E'], borderWidth: 0 }]
-    },
-    plugins: [mirqatDonutCenterPlugin(String(positive + negative))],
-    options: {
-      responsive: true,
-      cutout: '72%',
-      plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } }
-    }
+  mirqatApexDonut('statusChart', ['إيجابي', 'سلبي'], [positive, negative], {
+    colors: ['#2F6B52', '#B03A2E'], centerLabel: String(positive + negative)
   });
 }
 
 function drawTermBar(byTerm) {
-  const ctx = document.getElementById('termChart');
-  if (termChartInstance) termChartInstance.destroy();
-  termChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: byTerm.map(t => t.label),
-      datasets: [{ data: byTerm.map(t => t.count), backgroundColor: '#A9813F', borderRadius: 6, barThickness: 40 }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-    }
+  mirqatApexBar('termChart', byTerm.map(t => t.label), [{ name: 'سجلات', data: byTerm.map(t => t.count) }], {
+    colors: ['#A9813F']
   });
 }
 
 function drawBranchBar(byBranch) {
-  const ctx = document.getElementById('branchChart');
-  if (branchChartInstance) branchChartInstance.destroy();
-  branchChartInstance = new Chart(ctx, {
-    type: 'polarArea',
-    data: {
-      labels: byBranch.map(b => b.label),
-      datasets: [{ data: byBranch.map(b => b.count), backgroundColor: ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F'] }]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-  });
+  mirqatApexPolar('branchChart', byBranch.map(b => b.label), byBranch.map(b => b.count));
 }
 
 async function loadRecords() {

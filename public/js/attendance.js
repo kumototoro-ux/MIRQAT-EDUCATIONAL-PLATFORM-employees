@@ -167,51 +167,20 @@ async function loadStats() {
 
     if (stats.total > 0) {
       document.getElementById('statusChartCard').style.display = 'block';
-      const ctx = document.getElementById('statusChart');
-      if (statusChartInstance) statusChartInstance.destroy();
-      statusChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: stats.byStatus.map(s => s.label),
-          datasets: [{ data: stats.byStatus.map(s => s.count), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'], borderWidth: 0 }]
-        },
-        plugins: [mirqatDonutCenterPlugin(String(stats.total))],
-        options: { responsive: true, cutout: '72%', plugins: { legend: { position: 'bottom' } } }
+      mirqatApexDonut('statusChart', stats.byStatus.map(s => s.label), stats.byStatus.map(s => s.count), {
+        colors: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'], centerLabel: String(stats.total)
       });
 
       document.getElementById('statusBarChartCard').style.display = 'block';
-      const barCtx = document.getElementById('statusBarChart');
-      if (statusBarChartInstance) statusBarChartInstance.destroy();
-      statusBarChartInstance = new Chart(barCtx, {
-        type: 'bar',
-        data: {
-          labels: stats.byStatus.map(s => s.label),
-          datasets: [{ data: stats.byStatus.map(s => s.count), backgroundColor: '#2F6B52', borderRadius: 8, barThickness: 34 }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      mirqatApexBar('statusBarChart', stats.byStatus.map(s => s.label), [{ name: 'عدد', data: stats.byStatus.map(s => s.count) }], {
+        colors: ['#2F6B52']
       });
     }
 
     if (stats.weeklyTrend && stats.weeklyTrend.length) {
       document.getElementById('trendChartCard').style.display = 'block';
-      const trendCtx = document.getElementById('trendChart');
-      if (trendChartInstance) trendChartInstance.destroy();
-      trendChartInstance = new Chart(trendCtx, {
-        type: 'line',
-        data: {
-          labels: stats.weeklyTrend.map(w => w.label),
-          datasets: [{
-            label: 'عدد السجلات',
-            data: stats.weeklyTrend.map(w => w.count),
-            borderColor: '#2F6B52',
-            backgroundColor: 'rgba(47,107,82,0.12)',
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#2F6B52',
-            pointRadius: 4
-          }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      mirqatApexLine('trendChart', stats.weeklyTrend.map(w => w.label), stats.weeklyTrend.map(w => w.count), {
+        name: 'عدد السجلات', color: '#2F6B52'
       });
     }
   } catch (e) {
@@ -229,65 +198,24 @@ async function loadOverview() {
     const data = await mirqatApi('attendance', 'getOverview', {});
     if (!data.branches.length) return;
 
-    const palette = ['#2F6B52', '#A9813F', '#3D6B7A', '#B03A2E', '#74796F'];
-
     // مقارنة الحالات بين الفروع (أعمدة مجمّعة)
     document.getElementById('branchCompareCard').style.display = 'block';
-    if (branchCompareChartInstance) branchCompareChartInstance.destroy();
-    branchCompareChartInstance = new Chart(document.getElementById('branchCompareChart'), {
-      type: 'bar',
-      data: {
-        labels: data.statuses,
-        datasets: data.perBranch.map((b, i) => ({
-          label: b.branch,
-          data: data.statuses.map(s => b.byStatus.find(x => x.label === s)?.count || 0),
-          backgroundColor: palette[i % palette.length],
-          borderRadius: 6
-        }))
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
+    mirqatApexBar('branchCompareChart', data.statuses,
+      data.perBranch.map(b => ({ name: b.branch, data: data.statuses.map(s => b.byStatus.find(x => x.label === s)?.count || 0) }))
+    );
 
     // نسبة كل حالة من إجمالي كل فرع (عمود مكدّس بالنسبة المئوية)
     document.getElementById('branchPctCard').style.display = 'block';
-    if (branchPctChartInstance) branchPctChartInstance.destroy();
-    branchPctChartInstance = new Chart(document.getElementById('branchPctChart'), {
-      type: 'bar',
-      data: {
-        labels: data.perBranch.map(b => b.branch),
-        datasets: data.statuses.map((s, i) => ({
-          label: s,
-          data: data.perBranch.map(b => b.byStatus.find(x => x.label === s)?.pct || 0),
-          backgroundColor: palette[i % palette.length]
-        }))
-      },
-      options: {
-        responsive: true,
-        plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } } },
-        scales: { x: { stacked: true }, y: { stacked: true, max: 100, ticks: { callback: v => v + '%' } } }
-      }
-    });
+    mirqatApexStackedPct('branchPctChart', data.perBranch.map(b => b.branch),
+      data.statuses.map(s => ({ name: s, data: data.perBranch.map(b => b.byStatus.find(x => x.label === s)?.pct || 0) }))
+    );
 
     // اتجاه كل فرع عبر الأسابيع (خطوط متعددة)
     document.getElementById('branchTrendCard').style.display = 'block';
-    if (branchTrendChartInstance) branchTrendChartInstance.destroy();
     const labels = data.trendByBranch[0]?.series.map(s => s.label) || [];
-    branchTrendChartInstance = new Chart(document.getElementById('branchTrendChart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: data.trendByBranch.map((b, i) => ({
-          label: b.branch,
-          data: b.series.map(s => s.count),
-          borderColor: palette[i % palette.length],
-          backgroundColor: palette[i % palette.length] + '22',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3
-        }))
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
+    mirqatApexMultiLine('branchTrendChart', labels,
+      data.trendByBranch.map(b => ({ name: b.branch, data: b.series.map(s => s.count) }))
+    );
   } catch (e) { /* صامت — قسم ثانوي */ }
 }
 
@@ -335,25 +263,13 @@ async function applyCustomFilter() {
 
     if (result.total > 0) {
       document.getElementById('customDonutCard').style.display = 'block';
-      if (customDonutInstance) customDonutInstance.destroy();
-      customDonutInstance = new Chart(document.getElementById('customDonutChart'), {
-        type: 'pie',
-        data: {
-          labels: result.byStatus.map(s => s.label),
-          datasets: [{ data: result.byStatus.map(s => s.count), backgroundColor: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A'] }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      mirqatApexPie('customDonutChart', result.byStatus.map(s => s.label), result.byStatus.map(s => s.count), {
+        colors: ['#2F6B52', '#B03A2E', '#A9813F', '#3D6B7A']
       });
 
       document.getElementById('customBarCard').style.display = 'block';
-      if (customBarInstance) customBarInstance.destroy();
-      customBarInstance = new Chart(document.getElementById('customBarChart'), {
-        type: 'bar',
-        data: {
-          labels: result.byStatus.map(s => s.label),
-          datasets: [{ data: result.byStatus.map(s => s.count), backgroundColor: '#3D6B7A', borderRadius: 8 }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+      mirqatApexBar('customBarChart', result.byStatus.map(s => s.label), [{ name: 'عدد', data: result.byStatus.map(s => s.count) }], {
+        colors: ['#3D6B7A']
       });
     } else {
       document.getElementById('customDonutCard').style.display = 'none';
